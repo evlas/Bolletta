@@ -1,0 +1,5 @@
+{
+  "id": "custom_gas",
+  "name": "Fornitore Gas Personalizzato",
+  "description": "Configura un qualunque fornitore di gas naturale (PSV + spread)"
+}

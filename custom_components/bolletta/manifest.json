@@ -1,6 +1,6 @@
 {
   "domain": "bolletta",
-  "name": "Bolletta Elettrica",
+  "name": "Bolletta (Luce, Acqua, Gas)",
   "codeowners": [
     "@evlas"
   ],

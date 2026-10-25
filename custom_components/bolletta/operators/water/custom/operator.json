@@ -1,0 +1,5 @@
+{
+  "id": "custom_water",
+  "name": "Gestore Idrico Personalizzato",
+  "description": "Configura un qualunque altro gestore idrico (Hera, Iren, Publiacqua, A2A, ecc.)"
+}

@@ -1,4 +1,4 @@
-"""Modulo per il caricamento dinamico di operatori e offerte da file JSON e XML."""
+"""Modulo per il caricamento dinamico di operatori e offerte per energia, acqua e gas."""
 from __future__ import annotations
 
 import json
@@ -8,9 +8,23 @@ from typing import Any
 import xml.etree.ElementTree as ET
 
 try:
-    from .const import DEFAULT_FORMULA_ENERGIA, DEFAULT_FORMULA_QUOTA_FISSA
+    from .const import (
+        DEFAULT_FORMULA_ENERGIA,
+        DEFAULT_FORMULA_QUOTA_FISSA,
+        DEFAULT_WATER_VALUES,
+        COMMODITY_ENERGY,
+        COMMODITY_WATER,
+        COMMODITY_GAS,
+    )
 except (ImportError, ValueError):
-    from const import DEFAULT_FORMULA_ENERGIA, DEFAULT_FORMULA_QUOTA_FISSA
+    from const import (
+        DEFAULT_FORMULA_ENERGIA,
+        DEFAULT_FORMULA_QUOTA_FISSA,
+        DEFAULT_WATER_VALUES,
+        COMMODITY_ENERGY,
+        COMMODITY_WATER,
+        COMMODITY_GAS,
+    )
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +41,7 @@ DEFAULT_OFFER_VALUES = {
 }
 
 
-def _parse_xml_offer(file_path: Path) -> dict[str, Any]:
+def _parse_xml_offer(file_path: Path, commodity: str = "energy") -> dict[str, Any]:
     """Estrae i dati e le formule di calcolo di un'offerta da un file XML."""
     tree = ET.parse(file_path)
     root = tree.getroot()
@@ -59,18 +73,30 @@ def _parse_xml_offer(file_path: Path) -> dict[str, Any]:
         "id": offer_id,
         "name": name,
         "description": desc,
-        "ccl": get_float("ccl", DEFAULT_OFFER_VALUES["ccl"]),
-        "pcv": get_float("pcv", DEFAULT_OFFER_VALUES["pcv"]),
-        "pd": get_float("pd", DEFAULT_OFFER_VALUES["pd"]),
-        "pd_forfettario": get_float("pd_forfettario", DEFAULT_OFFER_VALUES["pd_forfettario"]),
-        "include_losses": get_bool("include_losses", DEFAULT_OFFER_VALUES["include_losses"]),
-        "accisa": get_float("accisa", DEFAULT_OFFER_VALUES["accisa"]),
-        "iva": get_float("iva", DEFAULT_OFFER_VALUES["iva"]),
-        "formula_energia": get_text("formula_energia", DEFAULT_FORMULA_ENERGIA),
-        "formula_quota_fissa": get_text("formula_quota_fissa", DEFAULT_FORMULA_QUOTA_FISSA),
     }
 
-    # Memorizza eventuali altri tag personalizzati (es. parametri fissi)
+    if commodity == "energy":
+        data.update({
+            "ccl": get_float("ccl", DEFAULT_OFFER_VALUES["ccl"]),
+            "pcv": get_float("pcv", DEFAULT_OFFER_VALUES["pcv"]),
+            "pd": get_float("pd", DEFAULT_OFFER_VALUES["pd"]),
+            "pd_forfettario": get_float("pd_forfettario", DEFAULT_OFFER_VALUES["pd_forfettario"]),
+            "include_losses": get_bool("include_losses", DEFAULT_OFFER_VALUES["include_losses"]),
+            "accisa": get_float("accisa", DEFAULT_OFFER_VALUES["accisa"]),
+            "iva": get_float("iva", DEFAULT_OFFER_VALUES["iva"]),
+            "formula_energia": get_text("formula_energia", DEFAULT_FORMULA_ENERGIA),
+            "formula_quota_fissa": get_text("formula_quota_fissa", DEFAULT_FORMULA_QUOTA_FISSA),
+        })
+    elif commodity == "water":
+        for k, v in DEFAULT_WATER_VALUES.items():
+            if isinstance(v, bool):
+                data[k] = get_bool(k, v)
+            elif isinstance(v, (int, float)):
+                data[k] = get_float(k, float(v))
+            else:
+                data[k] = get_text(k, str(v))
+
+    # Memorizza eventuali altri tag personalizzati
     for child in root:
         if child.tag not in data and child.text:
             text = child.text.strip()
@@ -82,7 +108,7 @@ def _parse_xml_offer(file_path: Path) -> dict[str, Any]:
     return data
 
 
-def _parse_json_offer(file_path: Path) -> dict[str, Any]:
+def _parse_json_offer(file_path: Path, commodity: str = "energy") -> dict[str, Any]:
     """Estrae i dati e le formule di calcolo di un'offerta da un file JSON."""
     with open(file_path, "r", encoding="utf-8") as f:
         raw_data = json.load(f)
@@ -96,27 +122,39 @@ def _parse_json_offer(file_path: Path) -> dict[str, Any]:
     data["name"] = name
     data["description"] = desc
 
-    # Imposta valori base se non presenti
-    data.setdefault("ccl", DEFAULT_OFFER_VALUES["ccl"])
-    data.setdefault("pcv", DEFAULT_OFFER_VALUES["pcv"])
-    data.setdefault("pd", DEFAULT_OFFER_VALUES["pd"])
-    data.setdefault("pd_forfettario", DEFAULT_OFFER_VALUES["pd_forfettario"])
-    data.setdefault("include_losses", DEFAULT_OFFER_VALUES["include_losses"])
-    data.setdefault("accisa", DEFAULT_OFFER_VALUES["accisa"])
-    data.setdefault("iva", DEFAULT_OFFER_VALUES["iva"])
-    data.setdefault("formula_energia", DEFAULT_FORMULA_ENERGIA)
-    data.setdefault("formula_quota_fissa", DEFAULT_FORMULA_QUOTA_FISSA)
-
-    # Assicura che dispbt sia rimosso se erroneamente presente nei parametri offerta
-    data.pop("dispbt", None)
+    if commodity == "energy":
+        data.setdefault("ccl", DEFAULT_OFFER_VALUES["ccl"])
+        data.setdefault("pcv", DEFAULT_OFFER_VALUES["pcv"])
+        data.setdefault("pd", DEFAULT_OFFER_VALUES["pd"])
+        data.setdefault("pd_forfettario", DEFAULT_OFFER_VALUES["pd_forfettario"])
+        data.setdefault("include_losses", DEFAULT_OFFER_VALUES["include_losses"])
+        data.setdefault("accisa", DEFAULT_OFFER_VALUES["accisa"])
+        data.setdefault("iva", DEFAULT_OFFER_VALUES["iva"])
+        data.setdefault("formula_energia", DEFAULT_FORMULA_ENERGIA)
+        data.setdefault("formula_quota_fissa", DEFAULT_FORMULA_QUOTA_FISSA)
+        data.pop("dispbt", None)
+    elif commodity == "water":
+        for k, v in DEFAULT_WATER_VALUES.items():
+            data.setdefault(k, v)
+    elif commodity == "gas":
+        data.setdefault("spread", 0.05)
+        data.setdefault("qf_anno", 96.0)
+        data.setdefault("iva", 10.0)
 
     return data
 
 
-def load_operators_and_offers(base_dir: Path | None = None) -> dict[str, dict[str, Any]]:
-    """Effettua la scansione della cartella operators e carica tutti gli operatori e le relative offerte."""
+def load_operators_and_offers(
+    commodity: str = "energy", base_dir: Path | None = None
+) -> dict[str, dict[str, Any]]:
+    """Effettua la scansione della cartella operators per la commodity specificata."""
     if base_dir is None:
-        base_dir = Path(__file__).parent / "operators"
+        root_operators = Path(__file__).parent / "operators"
+        commodity_dir = root_operators / commodity
+        if commodity_dir.exists():
+            base_dir = commodity_dir
+        else:
+            base_dir = root_operators
 
     operators: dict[str, dict[str, Any]] = {}
 
@@ -126,6 +164,10 @@ def load_operators_and_offers(base_dir: Path | None = None) -> dict[str, dict[st
 
     for op_dir in sorted(base_dir.iterdir()):
         if not op_dir.is_dir() or op_dir.name.startswith("."):
+            continue
+
+        # Evita di considerare sottodirectory commodity se chiamata sulla root
+        if op_dir.name in ("energy", "water", "gas") and base_dir.name == "operators":
             continue
 
         op_id = op_dir.name
@@ -165,10 +207,10 @@ def load_operators_and_offers(base_dir: Path | None = None) -> dict[str, dict[st
 
             try:
                 if file.suffix.lower() == ".json":
-                    offer_data = _parse_json_offer(file)
+                    offer_data = _parse_json_offer(file, commodity=commodity)
                     offers[offer_data["id"]] = offer_data
                 elif file.suffix.lower() == ".xml":
-                    offer_data = _parse_xml_offer(file)
+                    offer_data = _parse_xml_offer(file, commodity=commodity)
                     offers[offer_data["id"]] = offer_data
             except Exception as err:
                 _LOGGER.error("Errore nel parsing dell'offerta %s: %s", file, err)
@@ -179,8 +221,11 @@ def load_operators_and_offers(base_dir: Path | None = None) -> dict[str, dict[st
                 "id": "default",
                 "name": f"Offerta Base {op_name}",
                 "description": "Parametri standard",
-                **DEFAULT_OFFER_VALUES,
             }
+            if commodity == "energy":
+                offers["default"].update(DEFAULT_OFFER_VALUES)
+            elif commodity == "water":
+                offers["default"].update(DEFAULT_WATER_VALUES)
 
         operators[op_id] = {
             "id": op_id,

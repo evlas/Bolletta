@@ -218,3 +218,94 @@ def compute_prezzo_fisso_giornaliero(
     costo_annuo = pcv + dispbt + qf_s1 + (qp_s2 * power_kw) + (uc6_qp * power_kw)
     totale_giornaliero = (costo_annuo * (1.0 + (iva_percent / 100.0))) / 365.0
     return round(totale_giornaliero, decimals)
+
+
+def get_scaglione_acqua(
+    mc: float, s1: float = 55.0, s2: float = 108.0, s3: float = 162.0, s4: float = 216.0
+) -> str:
+    """Determina il nome dello scaglione idrico in base al consumo annuo m³."""
+    if mc <= s1:
+        return "Agevolata"
+    if mc <= s2:
+        return "Base"
+    if mc <= s3:
+        return "I Eccedenza"
+    if mc <= s4:
+        return "II Eccedenza"
+    return "III Eccedenza"
+
+
+def compute_bolletta_acqua(
+    mc: float,
+    qf_idrico: float,
+    qf_fognatura: float,
+    qf_depurazione: float,
+    usa_fognatura_depurazione: bool,
+    s1: float,
+    s2: float,
+    s3: float,
+    s4: float,
+    t_agevolata: float,
+    t_base: float,
+    t_ecc1: float,
+    t_ecc2: float,
+    t_ecc3: float,
+    t_fognatura: float,
+    t_depurazione: float,
+    ui1: float,
+    ui2: float,
+    ui3: float,
+    iva_percent: float,
+) -> dict[str, Any]:
+    """Calcola i dettagli della bolletta dell'acqua secondo le tariffe a scaglioni ARERA TICSI."""
+    qf_extra = (qf_fognatura + qf_depurazione) if usa_fognatura_depurazione else 0.0
+    qf_tot = qf_idrico + qf_extra
+
+    ui = ui1 + ui2 + ui3
+    var_fog_dep = (t_fognatura + t_depurazione) if usa_fognatura_depurazione else 0.0
+    variabili_extra = ui + var_fog_dep
+
+    # Calcolo progressivo scaglioni acquedotto
+    if mc <= s1:
+        idrico = mc * t_agevolata
+        scaglione = "Agevolata"
+    elif mc <= s2:
+        idrico = (s1 * t_agevolata) + ((mc - s1) * t_base)
+        scaglione = "Base"
+    elif mc <= s3:
+        idrico = (s1 * t_agevolata) + ((s2 - s1) * t_base) + ((mc - s2) * t_ecc1)
+        scaglione = "I Eccedenza"
+    elif mc <= s4:
+        idrico = (
+            (s1 * t_agevolata)
+            + ((s2 - s1) * t_base)
+            + ((s3 - s2) * t_ecc1)
+            + ((mc - s3) * t_ecc2)
+        )
+        scaglione = "II Eccedenza"
+    else:
+        idrico = (
+            (s1 * t_agevolata)
+            + ((s2 - s1) * t_base)
+            + ((s3 - s2) * t_ecc1)
+            + ((s4 - s3) * t_ecc2)
+            + ((mc - s4) * t_ecc3)
+        )
+        scaglione = "III Eccedenza"
+
+    imponibile = qf_tot + idrico + (mc * variabili_extra)
+    iva_multiplier = 1.0 + (iva_percent / 100.0)
+    costo_totale = imponibile * iva_multiplier
+    prezzo_medio_m3 = (costo_totale / mc) if mc > 0 else 0.0
+    qf_giornaliera = (qf_tot * iva_multiplier) / 365.0
+    qf_annua = qf_tot * iva_multiplier
+
+    return {
+        "costo_totale": round(costo_totale, 2),
+        "prezzo_medio_m3": round(prezzo_medio_m3, 4),
+        "scaglione": scaglione,
+        "quota_fissa_giornaliera": round(qf_giornaliera, 4),
+        "quota_fissa_annua": round(qf_annua, 2),
+        "quota_variabile": round((idrico + mc * variabili_extra) * iva_multiplier, 2),
+    }
+

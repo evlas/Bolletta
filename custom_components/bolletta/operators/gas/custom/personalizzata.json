@@ -1,0 +1,8 @@
+{
+  "id": "personalizzata_gas",
+  "name": "Offerta Gas Indicizzata PSV",
+  "description": "Offerta a prezzo variabile indicizzato al PSV mensile con spread",
+  "spread": 0.05,
+  "qf_anno": 96.0,
+  "iva": 10.0
+}

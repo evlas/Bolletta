@@ -20,6 +20,9 @@ from homeassistant.helpers.event import (
 )
 
 from .const import (
+    COMMODITY_ENERGY,
+    COMMODITY_GAS,
+    COMMODITY_WATER,
     CONF_ACCISA,
     CONF_ARERA_ARIM,
     CONF_ARERA_ASOS,
@@ -31,6 +34,7 @@ from .const import (
     CONF_ARERA_UC6_QE,
     CONF_ARERA_UC6_QP,
     CONF_CCL,
+    CONF_COMMODITY,
     CONF_FORMULA_ENERGIA,
     CONF_FORMULA_QUOTA_FISSA,
     CONF_INCLUDE_LOSSES,
@@ -44,18 +48,40 @@ from .const import (
     CONF_PUN_F1,
     CONF_PUN_F2,
     CONF_PUN_F3,
+    CONF_QF_DEPURAZIONE,
+    CONF_QF_FOGNATURA,
+    CONF_QF_IDRICO,
+    CONF_S1,
+    CONF_S2,
+    CONF_S3,
+    CONF_S4,
+    CONF_T_AGEVOLATA,
+    CONF_T_BASE,
+    CONF_T_DEPURAZIONE,
+    CONF_T_ECC1,
+    CONF_T_ECC2,
+    CONF_T_ECC3,
+    CONF_T_FOGNATURA,
+    CONF_UI1,
+    CONF_UI2,
+    CONF_UI3,
+    CONF_USA_FOGNATURA_DEPURAZIONE,
     CONF_USE_MULTIORARIO,
+    CONF_WATER_SENSOR,
     DEFAULT_POWER_KW,
+    DEFAULT_WATER_VALUES,
     DOMAIN,
     FALLBACK_ARERA,
     OPERATORS,
 )
 from .operators_loader import load_operators_and_offers
 from .tariffs import (
+    compute_bolletta_acqua,
     compute_prezzo_energia,
     compute_prezzo_fisso_giornaliero,
     evaluate_formula,
     get_fascia_oraria,
+    get_scaglione_acqua,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,8 +94,26 @@ async def async_setup_entry(
 ) -> None:
     """Configura i sensori Bolletta da ConfigEntry."""
     data = {**entry.data, **entry.options}
+    commodity = data.get(CONF_COMMODITY, COMMODITY_ENERGY)
     operator = data.get(CONF_OPERATOR, "custom")
-    loaded_ops = load_operators_and_offers()
+
+    if commodity == COMMODITY_WATER:
+        loaded_ops = load_operators_and_offers(COMMODITY_WATER)
+        operator_name = loaded_ops.get(operator, {}).get("name", operator.capitalize())
+        contract_name = data.get("name", f"Bolletta {operator_name}")
+
+        totale_sensor = CostoAcquaTotaleSensor(hass, entry, "costo_acqua_totale", contract_name, operator_name)
+        medio_sensor = PrezzoMedioM3Sensor(hass, entry, "prezzo_medio_m3", contract_name, operator_name, totale_sensor)
+        scaglione_sensor = ScaglioneAcquaSensor(hass, entry, "scaglione_acqua", contract_name, operator_name, totale_sensor)
+        qf_day_sensor = QuotaFissaGiornalieraAcquaSensor(hass, entry, "quota_fissa_giornaliera_acqua", contract_name, operator_name, totale_sensor)
+        qf_year_sensor = QuotaFissaAnnuaAcquaSensor(hass, entry, "quota_fissa_annua_acqua", contract_name, operator_name, totale_sensor)
+        qv_sensor = QuotaVariabileAcquaSensor(hass, entry, "quota_variabile_acqua", contract_name, operator_name, totale_sensor)
+
+        async_add_entities([totale_sensor, medio_sensor, scaglione_sensor, qf_day_sensor, qf_year_sensor, qv_sensor], True)
+        return
+
+    # Default: Energia Elettrica
+    loaded_ops = load_operators_and_offers(COMMODITY_ENERGY)
     operator_name = loaded_ops.get(operator, {}).get("name", OPERATORS.get(operator, operator.capitalize()))
     contract_name = data.get("name", f"Bolletta {operator_name}")
 
@@ -149,11 +193,18 @@ class BollettaBaseSensor(SensorEntity):
         self._contract_name = contract_name
         self._operator_name = operator_name
 
+        commodity = entry.data.get(CONF_COMMODITY, COMMODITY_ENERGY)
+        model_name = {
+            COMMODITY_ENERGY: f"Fornitura Energia Elettrica ({operator_name})",
+            COMMODITY_WATER: f"Servizio Idrico ({operator_name})",
+            COMMODITY_GAS: f"Fornitura Gas ({operator_name})",
+        }.get(commodity, f"Fornitura {operator_name}")
+
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=contract_name,
             manufacturer=operator_name,
-            model="Contratto Fornitura Elettrica",
+            model=model_name,
         )
 
     @property
@@ -490,3 +541,216 @@ class CostoFissoMensileSensor(BollettaBaseSensor):
             self._attr_native_value = round(daily_val * (365.0 / 12.0), 2)
         else:
             self._attr_native_value = None
+
+
+# =============================================================================
+# SENSORI PER IL SERVIZIO IDRICO (ACQUA)
+# =============================================================================
+class CostoAcquaTotaleSensor(BollettaBaseSensor):
+    """Sensore per il costo totale stimato della bolletta dell'acqua (€)."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_native_unit_of_measurement = "EUR"
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 2
+    _attr_icon = "mdi:water-pump"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+    ) -> None:
+        """Inizializza."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self.calc_result: dict[str, Any] = {
+            "costo_totale": 0.0,
+            "prezzo_medio_m3": 0.0,
+            "scaglione": "Agevolata",
+            "quota_fissa_giornaliera": 0.0,
+            "quota_fissa_annua": 0.0,
+            "quota_variabile": 0.0,
+        }
+
+    async def async_added_to_hass(self) -> None:
+        """Ascolta le variazioni del contatore acqua."""
+        await super().async_added_to_hass()
+        water_entity = self.config.get(CONF_WATER_SENSOR)
+
+        @callback
+        def _handle_state_change(event) -> None:
+            self.async_schedule_update_ha_state(True)
+
+        if water_entity:
+            self.async_on_remove(
+                async_track_state_change_event(self.hass, [water_entity], _handle_state_change)
+            )
+
+    def update(self) -> None:
+        """Calcola il costo dell'acqua."""
+        cfg = self.config
+        water_entity = cfg.get(CONF_WATER_SENSOR)
+        mc = self._get_float_state(water_entity, 0.0)
+
+        self.calc_result = compute_bolletta_acqua(
+            mc=mc,
+            qf_idrico=float(cfg.get(CONF_QF_IDRICO, DEFAULT_WATER_VALUES[CONF_QF_IDRICO])),
+            qf_fognatura=float(cfg.get(CONF_QF_FOGNATURA, DEFAULT_WATER_VALUES[CONF_QF_FOGNATURA])),
+            qf_depurazione=float(cfg.get(CONF_QF_DEPURAZIONE, DEFAULT_WATER_VALUES[CONF_QF_DEPURAZIONE])),
+            usa_fognatura_depurazione=bool(cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+            s1=float(cfg.get(CONF_S1, DEFAULT_WATER_VALUES[CONF_S1])),
+            s2=float(cfg.get(CONF_S2, DEFAULT_WATER_VALUES[CONF_S2])),
+            s3=float(cfg.get(CONF_S3, DEFAULT_WATER_VALUES[CONF_S3])),
+            s4=float(cfg.get(CONF_S4, DEFAULT_WATER_VALUES[CONF_S4])),
+            t_agevolata=float(cfg.get(CONF_T_AGEVOLATA, DEFAULT_WATER_VALUES[CONF_T_AGEVOLATA])),
+            t_base=float(cfg.get(CONF_T_BASE, DEFAULT_WATER_VALUES[CONF_T_BASE])),
+            t_ecc1=float(cfg.get(CONF_T_ECC1, DEFAULT_WATER_VALUES[CONF_T_ECC1])),
+            t_ecc2=float(cfg.get(CONF_T_ECC2, DEFAULT_WATER_VALUES[CONF_T_ECC2])),
+            t_ecc3=float(cfg.get(CONF_T_ECC3, DEFAULT_WATER_VALUES[CONF_T_ECC3])),
+            t_fognatura=float(cfg.get(CONF_T_FOGNATURA, DEFAULT_WATER_VALUES[CONF_T_FOGNATURA])),
+            t_depurazione=float(cfg.get(CONF_T_DEPURAZIONE, DEFAULT_WATER_VALUES[CONF_T_DEPURAZIONE])),
+            ui1=float(cfg.get(CONF_UI1, DEFAULT_WATER_VALUES[CONF_UI1])),
+            ui2=float(cfg.get(CONF_UI2, DEFAULT_WATER_VALUES[CONF_UI2])),
+            ui3=float(cfg.get(CONF_UI3, DEFAULT_WATER_VALUES[CONF_UI3])),
+            iva_percent=float(cfg.get(CONF_IVA, 10.0)),
+        )
+
+        self._attr_native_value = self.calc_result["costo_totale"]
+        self._attr_extra_state_attributes = {
+            "consumo_mc": mc,
+            "scaglione": self.calc_result["scaglione"],
+            "quota_fissa_annua": self.calc_result["quota_fissa_annua"],
+            "quota_variabile": self.calc_result["quota_variabile"],
+            "fognatura_depurazione_attive": bool(cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+        }
+
+
+class PrezzoMedioM3Sensor(BollettaBaseSensor):
+    """Sensore per il prezzo medio effettivo al m³ (€/m³)."""
+
+    _attr_native_unit_of_measurement = "EUR/m³"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 4
+    _attr_icon = "mdi:water-percent"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+        totale_sensor: CostoAcquaTotaleSensor,
+    ) -> None:
+        """Inizializza."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._totale_sensor = totale_sensor
+
+    def update(self) -> None:
+        """Aggiorna il prezzo medio."""
+        self._attr_native_value = self._totale_sensor.calc_result.get("prezzo_medio_m3", 0.0)
+
+
+class ScaglioneAcquaSensor(BollettaBaseSensor):
+    """Sensore per lo scaglione idrico attualmente attivo."""
+
+    _attr_icon = "mdi:stairs"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+        totale_sensor: CostoAcquaTotaleSensor,
+    ) -> None:
+        """Inizializza."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._totale_sensor = totale_sensor
+
+    def update(self) -> None:
+        """Aggiorna lo scaglione."""
+        self._attr_native_value = self._totale_sensor.calc_result.get("scaglione", "Agevolata")
+
+
+class QuotaFissaGiornalieraAcquaSensor(BollettaBaseSensor):
+    """Sensore per la quota fissa giornaliera dell'acqua (€/giorno)."""
+
+    _attr_native_unit_of_measurement = "EUR/day"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 4
+    _attr_icon = "mdi:calendar-today"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+        totale_sensor: CostoAcquaTotaleSensor,
+    ) -> None:
+        """Inizializza."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._totale_sensor = totale_sensor
+
+    def update(self) -> None:
+        """Aggiorna la quota fissa giornaliera."""
+        self._attr_native_value = self._totale_sensor.calc_result.get("quota_fissa_giornaliera", 0.0)
+
+
+class QuotaFissaAnnuaAcquaSensor(BollettaBaseSensor):
+    """Sensore per la quota fissa annua dell'acqua (€/anno)."""
+
+    _attr_native_unit_of_measurement = "EUR/year"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 2
+    _attr_icon = "mdi:calendar-blank"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+        totale_sensor: CostoAcquaTotaleSensor,
+    ) -> None:
+        """Inizializza."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._totale_sensor = totale_sensor
+
+    def update(self) -> None:
+        """Aggiorna la quota fissa annua."""
+        self._attr_native_value = self._totale_sensor.calc_result.get("quota_fissa_annua", 0.0)
+
+
+class QuotaVariabileAcquaSensor(BollettaBaseSensor):
+    """Sensore per la quota variabile dell'acqua (€)."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_native_unit_of_measurement = "EUR"
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 2
+    _attr_icon = "mdi:water-plus"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+        totale_sensor: CostoAcquaTotaleSensor,
+    ) -> None:
+        """Inizializza."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._totale_sensor = totale_sensor
+
+    def update(self) -> None:
+        """Aggiorna la quota variabile."""
+        self._attr_native_value = self._totale_sensor.calc_result.get("quota_variabile", 0.0)
+

@@ -2,11 +2,18 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configura Fornitore Luce",
-        "description": "Seleziona l'operatore energetico, il nome dell'istanza e la potenza impegnata del contatore.",
+        "title": "Seleziona Tipo di Utenza",
+        "description": "Scegli se configurare una fornitura di Energia Elettrica, Servizio Idrico (Acqua) o Gas Naturale.",
+        "data": {
+          "commodity": "Tipo di Fornitura"
+        }
+      },
+      "energy_init": {
+        "title": "Configura Fornitura Energia Elettrica",
+        "description": "Seleziona il fornitore di energia elettrica, il nome dell'istanza e la potenza impegnata del contatore.",
         "data": {
           "name": "Nome Contratto / Istanza",
-          "operator": "Operatore / Fornitore",
+          "operator": "Fornitore Energia Elettrica",
           "power_kw": "Potenza Impegnata Contatore (kW)",
           "use_multiorario": "Tariffa Multioraria (F1, F2, F3)"
         }
@@ -55,6 +62,58 @@
           "arera_arim": "Sensore Arim (Rimanenti Oneri)",
           "arera_dispbt": "Sensore Dispacciamento DispBT"
         }
+      },
+      "water_init": {
+        "title": "Configura Servizio Idrico (Acqua)",
+        "description": "Seleziona il gestore idrico, il nome dell'istanza e il sensore del contatore acqua (m³ annui).",
+        "data": {
+          "name": "Nome Contratto / Istanza",
+          "operator": "Gestore Idrico",
+          "water_sensor": "Sensore Contatore Acqua (m³ annui)"
+        }
+      },
+      "water_offer": {
+        "title": "Seleziona Tariffa Idrica",
+        "description": "Scegli la tipologia d'uso per {operator}.",
+        "data": {
+          "offer": "Tipologia Tariffa"
+        }
+      },
+      "water_params": {
+        "title": "Parametri Tariffari Idrici (ARERA TICSI)",
+        "description": "Verifica o personalizza le quote fisse annue, le soglie degli scaglioni di consumo e i corrispettivi unitari al m³.",
+        "data": {
+          "qf_idrico": "Quota Fissa Acquedotto (€/anno)",
+          "qf_fognatura": "Quota Fissa Fognatura (€/anno)",
+          "qf_depurazione": "Quota Fissa Depurazione (€/anno)",
+          "usa_fognatura_depurazione": "Abilita Fognatura e Depurazione",
+          "s1": "Soglia Tariffa Agevolata (m³/anno)",
+          "s2": "Soglia Tariffa Base (m³/anno)",
+          "s3": "Soglia I Eccedenza (m³/anno)",
+          "s4": "Soglia II Eccedenza (m³/anno)",
+          "t_agevolata": "Tariffa Agevolata (€/m³)",
+          "t_base": "Tariffa Base (€/m³)",
+          "t_ecc1": "Tariffa I Eccedenza (€/m³)",
+          "t_ecc2": "Tariffa II Eccedenza (€/m³)",
+          "t_ecc3": "Tariffa III Eccedenza (€/m³)",
+          "t_fognatura": "Tariffa Fognatura (€/m³)",
+          "t_depurazione": "Tariffa Depurazione (€/m³)",
+          "ui1": "Oneri Perequazione UI1 (€/m³)",
+          "ui2": "Oneri Perequazione UI2 (€/m³)",
+          "ui3": "Oneri Perequazione UI3 (€/m³)",
+          "iva": "Aliquota IVA (%)"
+        }
+      },
+      "gas_init": {
+        "title": "Configura Fornitura Gas Naturale",
+        "description": "Seleziona il fornitore di gas naturale e i parametri economici base.",
+        "data": {
+          "name": "Nome Contratto / Istanza",
+          "operator": "Fornitore Gas",
+          "qf_anno": "Quota Fissa Commercializzazione (€/anno)",
+          "spread": "Spread su PSV (€/Smc)",
+          "iva": "Aliquota IVA (%)"
+        }
       }
     },
     "error": {
@@ -69,7 +128,7 @@
     "step": {
       "init": {
         "title": "Opzioni Contratto Bolletta",
-        "description": "Modifica i parametri contrattuali, la potenza impegnata o i sensori PUN collegati.",
+        "description": "Modifica i parametri contrattuali o i sensori collegati.",
         "data": {
           "power_kw": "Potenza Impegnata Contatore (kW)",
           "ccl": "Contributo al Consumo / Spread (€/kWh)",
@@ -82,7 +141,26 @@
           "pun_f0": "Sensore PUN Monorario (F0)",
           "pun_f1": "Sensore PUN Fascia F1",
           "pun_f2": "Sensore PUN Fascia F2",
-          "pun_f3": "Sensore PUN Fascia F3"
+          "pun_f3": "Sensore PUN Fascia F3",
+          "water_sensor": "Sensore Contatore Acqua (m³ annui)",
+          "qf_idrico": "Quota Fissa Acquedotto (€/anno)",
+          "qf_fognatura": "Quota Fissa Fognatura (€/anno)",
+          "qf_depurazione": "Quota Fissa Depurazione (€/anno)",
+          "usa_fognatura_depurazione": "Abilita Fognatura e Depurazione",
+          "s1": "Soglia Tariffa Agevolata (m³/anno)",
+          "s2": "Soglia Tariffa Base (m³/anno)",
+          "s3": "Soglia I Eccedenza (m³/anno)",
+          "s4": "Soglia II Eccedenza (m³/anno)",
+          "t_agevolata": "Tariffa Agevolata (€/m³)",
+          "t_base": "Tariffa Base (€/m³)",
+          "t_ecc1": "Tariffa I Eccedenza (€/m³)",
+          "t_ecc2": "Tariffa II Eccedenza (€/m³)",
+          "t_ecc3": "Tariffa III Eccedenza (€/m³)",
+          "t_fognatura": "Tariffa Fognatura (€/m³)",
+          "t_depurazione": "Tariffa Depurazione (€/m³)",
+          "ui1": "Oneri Perequazione UI1 (€/m³)",
+          "ui2": "Oneri Perequazione UI2 (€/m³)",
+          "ui3": "Oneri Perequazione UI3 (€/m³)"
         }
       }
     }
@@ -112,6 +190,24 @@
       },
       "costo_fisso_mensile": {
         "name": "Costo fisso mensile"
+      },
+      "costo_acqua_totale": {
+        "name": "Costo totale acqua stimato"
+      },
+      "prezzo_medio_m3": {
+        "name": "Prezzo medio al m³"
+      },
+      "scaglione_acqua": {
+        "name": "Scaglione idrico attivo"
+      },
+      "quota_fissa_giornaliera_acqua": {
+        "name": "Quota fissa giornaliera acqua"
+      },
+      "quota_fissa_annua_acqua": {
+        "name": "Quota fissa annua acqua"
+      },
+      "quota_variabile_acqua": {
+        "name": "Quota variabile consumo acqua"
       }
     }
   }

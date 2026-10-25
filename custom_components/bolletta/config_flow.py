@@ -1,4 +1,4 @@
-"""Config Flow per l'integrazione Bolletta Elettrica."""
+"""Config Flow per l'integrazione Bolletta (Energia Elettrica, Acqua, Gas)."""
 from __future__ import annotations
 
 import logging
@@ -23,6 +23,10 @@ from homeassistant.helpers.selector import (
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
+    COMMODITIES,
+    COMMODITY_ENERGY,
+    COMMODITY_GAS,
+    COMMODITY_WATER,
     CONF_ACCISA,
     CONF_ARERA_ARIM,
     CONF_ARERA_ASOS,
@@ -34,6 +38,7 @@ from .const import (
     CONF_ARERA_UC6_QE,
     CONF_ARERA_UC6_QP,
     CONF_CCL,
+    CONF_COMMODITY,
     CONF_FORMULA_ENERGIA,
     CONF_FORMULA_QUOTA_FISSA,
     CONF_INCLUDE_LOSSES,
@@ -48,10 +53,30 @@ from .const import (
     CONF_PUN_F1,
     CONF_PUN_F2,
     CONF_PUN_F3,
+    CONF_QF_DEPURAZIONE,
+    CONF_QF_FOGNATURA,
+    CONF_QF_IDRICO,
+    CONF_S1,
+    CONF_S2,
+    CONF_S3,
+    CONF_S4,
+    CONF_T_AGEVOLATA,
+    CONF_T_BASE,
+    CONF_T_DEPURAZIONE,
+    CONF_T_ECC1,
+    CONF_T_ECC2,
+    CONF_T_ECC3,
+    CONF_T_FOGNATURA,
+    CONF_UI1,
+    CONF_UI2,
+    CONF_UI3,
+    CONF_USA_FOGNATURA_DEPURAZIONE,
     CONF_USE_MULTIORARIO,
+    CONF_WATER_SENSOR,
     DEFAULT_FORMULA_ENERGIA,
     DEFAULT_FORMULA_QUOTA_FISSA,
     DEFAULT_POWER_KW,
+    DEFAULT_WATER_VALUES,
     DOMAIN,
     FALLBACK_ARERA,
 )
@@ -72,10 +97,50 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Primo step: Nome, Operatore, Potenza impegnata e Fasce orarie."""
-        errors: dict[str, str] = {}
+        """Primo step: Selezione del tipo di utenza (Energia Elettrica, Acqua, Gas)."""
+        if user_input is not None:
+            commodity = user_input.get(CONF_COMMODITY, COMMODITY_ENERGY)
+            self._user_data[CONF_COMMODITY] = commodity
 
-        operators = load_operators_and_offers()
+            if commodity == COMMODITY_WATER:
+                return await self.async_step_water_init()
+            if commodity == COMMODITY_GAS:
+                return await self.async_step_gas_init()
+            return await self.async_step_energy_init()
+
+        commodity_options = [
+            SelectOptionDict(value=COMMODITY_ENERGY, label="⚡ Energia Elettrica (Luce)"),
+            SelectOptionDict(value=COMMODITY_WATER, label="💧 Acqua (Servizio Idrico)"),
+            SelectOptionDict(value=COMMODITY_GAS, label="🔥 Gas Naturale"),
+        ]
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_COMMODITY, default=COMMODITY_ENERGY
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=commodity_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=data_schema,
+        )
+
+    # =========================================================================
+    # FLUSSO ENERGIA ELETTRICA
+    # =========================================================================
+    async def async_step_energy_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configurazione base fornitura energia elettrica."""
+        errors: dict[str, str] = {}
+        operators = load_operators_and_offers(COMMODITY_ENERGY)
         operator_options = [
             SelectOptionDict(value=op_id, label=op_data["name"])
             for op_id, op_data in operators.items()
@@ -118,7 +183,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="energy_init",
             data_schema=data_schema,
             errors=errors,
         )
@@ -126,9 +191,9 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_offer(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Secondo step: Selezione dell'offerta specifica dell'operatore."""
+        """Selezione dell'offerta specifica dell'operatore energetico."""
         errors: dict[str, str] = {}
-        operators = load_operators_and_offers()
+        operators = load_operators_and_offers(COMMODITY_ENERGY)
         op_id = self._user_data.get(CONF_OPERATOR, "custom")
         op_data = operators.get(op_id, {})
         offers = op_data.get("offers", {})
@@ -150,7 +215,6 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             chosen_offer_id = user_input.get(CONF_OFFER, default_offer)
             self._user_data[CONF_OFFER] = chosen_offer_id
 
-            # Carica tutti i parametri e le formule dell'offerta selezionata (escludendo dispbt che è fornito da ARERA)
             chosen_offer = offers.get(chosen_offer_id, {})
             for key, val in chosen_offer.items():
                 if key != "dispbt":
@@ -181,12 +245,11 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_pun(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Terzo step: Selezione delle entità PUN da Home Assistant."""
+        """Selezione delle entità PUN da Home Assistant."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             try:
-                # Pulisce i valori vuoti o None
                 clean_input = {k: v for k, v in user_input.items() if v}
                 self._user_data.update(clean_input)
                 return await self.async_step_operator_params()
@@ -230,30 +293,18 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_operator_params(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Quarto step: Parametri contrattuali dell'operatore e dell'offerta."""
+        """Personalizzazione dei parametri contrattuali dell'offerta scelta."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                clean_input = {k: v for k, v in user_input.items() if v is not None}
-                self._user_data.update(clean_input)
-                return await self.async_step_arera()
-            except Exception as err:
-                _LOGGER.exception("Errore nei parametri operatore: %s", err)
-                errors["base"] = "unknown"
-
-        ccl_val = float(self._user_data.get(CONF_CCL, 0.0152))
-        pcv_val = float(self._user_data.get(CONF_PCV, 69.88))
-        pd_val = float(self._user_data.get(CONF_PD, 0.0018))
-        pd_forfettario_val = float(self._user_data.get(CONF_PD_FORFETTARIO, 0.0))
-        include_losses_val = bool(self._user_data.get(CONF_INCLUDE_LOSSES, True))
-        accisa_val = float(self._user_data.get(CONF_ACCISA, 0.0227))
-        iva_val = float(self._user_data.get(CONF_IVA, 10.0))
+            self._user_data.update(user_input)
+            return await self.async_step_arera()
 
         data_schema = vol.Schema(
             {
                 vol.Required(
-                    CONF_CCL, default=ccl_val
+                    CONF_CCL,
+                    default=float(self._user_data.get(CONF_CCL, 0.0152)),
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -264,7 +315,8 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_PCV, default=pcv_val
+                    CONF_PCV,
+                    default=float(self._user_data.get(CONF_PCV, 69.88)),
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -275,7 +327,8 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_PD, default=pd_val
+                    CONF_PD,
+                    default=float(self._user_data.get(CONF_PD, 0.0018)),
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -286,7 +339,8 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_PD_FORFETTARIO, default=pd_forfettario_val
+                    CONF_PD_FORFETTARIO,
+                    default=float(self._user_data.get(CONF_PD_FORFETTARIO, 0.0)),
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -297,10 +351,12 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_INCLUDE_LOSSES, default=include_losses_val
+                    CONF_INCLUDE_LOSSES,
+                    default=bool(self._user_data.get(CONF_INCLUDE_LOSSES, True)),
                 ): bool,
                 vol.Required(
-                    CONF_ACCISA, default=accisa_val
+                    CONF_ACCISA,
+                    default=float(self._user_data.get(CONF_ACCISA, 0.0227)),
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -311,7 +367,8 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_IVA, default=iva_val
+                    CONF_IVA,
+                    default=float(self._user_data.get(CONF_IVA, 10.0)),
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -333,101 +390,53 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_arera(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Quarto step: Collegamento entità ARERA (opzionale o auto-rilevamento)."""
+        """Collegamento facoltativo dei sensori ARERA."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             clean_input = {k: v for k, v in user_input.items() if v}
             self._user_data.update(clean_input)
-            title = self._user_data.get("name", f"Bolletta {self._user_data.get(CONF_OPERATOR, '')}")
+            title = self._user_data.get("name", "Bolletta Luce")
             return self.async_create_entry(title=title, data=self._user_data)
 
-        # Rileva automaticamente entità ARERA standard se presenti nel registro
-        schema_dict: dict[Any, Any] = {}
-        arera_candidates = [
-            (
-                CONF_ARERA_S1,
-                [
-                    "sensor.arera_quota_fissa",
-                    "sensor.arera_tariffe_regolate_s1",
-                    "sensor.arera_s1",
-                ],
-            ),
-            (
-                CONF_ARERA_S2,
-                [
-                    "sensor.arera_quota_potenza",
-                    "sensor.arera_tariffe_regolate_s2",
-                    "sensor.arera_s2",
-                ],
-            ),
-            (
-                CONF_ARERA_S3,
-                [
-                    "sensor.arera_quota_energia",
-                    "sensor.arera_tariffe_regolate_s3",
-                    "sensor.arera_s3",
-                ],
-            ),
-            (
-                CONF_ARERA_UC3,
-                [
-                    "sensor.arera_uc3",
-                    "sensor.arera_tariffe_regolate_uc3",
-                ],
-            ),
-            (
-                CONF_ARERA_UC6_QE,
-                [
-                    "sensor.arera_uc6_qe",
-                    "sensor.arera_tariffe_regolate_uc6qe",
-                ],
-            ),
-            (
-                CONF_ARERA_UC6_QP,
-                [
-                    "sensor.arera_uc6_qp",
-                    "sensor.arera_tariffe_regolate_uc6qp",
-                ],
-            ),
-            (
-                CONF_ARERA_ASOS,
-                [
-                    "sensor.arera_asos",
-                    "sensor.arera_tariffe_regolate_asos",
-                ],
-            ),
-            (
-                CONF_ARERA_ARIM,
-                [
-                    "sensor.arera_arim",
-                    "sensor.arera_tariffe_regolate_arim",
-                ],
-            ),
-            (
-                CONF_ARERA_DISPBT,
-                [
-                    "sensor.arera_dispbt",
-                    "sensor.arera_tariffe_regolate_dispbt",
-                ],
-            ),
-        ]
+        def _find_sensor(suffix: str) -> str | None:
+            expected = f"sensor.arera_{suffix}"
+            if self.hass.states.get(expected) is not None:
+                return expected
+            for state in self.hass.states.async_all():
+                if "arera" in state.entity_id and suffix in state.entity_id:
+                    return state.entity_id
+            return None
 
-        for conf_key, candidates in arera_candidates:
-            found_id = None
-            for cand in candidates:
-                if self.hass.states.get(cand) is not None:
-                    found_id = cand
-                    break
-
-            if found_id is not None:
-                schema_dict[
-                    vol.Optional(conf_key, description={"suggested_value": found_id})
-                ] = EntitySelector(EntitySelectorConfig(domain="sensor"))
-            else:
-                schema_dict[vol.Optional(conf_key)] = EntitySelector(
-                    EntitySelectorConfig(domain="sensor")
-                )
+        schema_dict: dict[Any, Any] = {
+            vol.Optional(
+                CONF_ARERA_S1, description={"suggested_value": _find_sensor("quota_fissa")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_S2, description={"suggested_value": _find_sensor("quota_potenza")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_S3, description={"suggested_value": _find_sensor("quota_energia")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_UC3, description={"suggested_value": _find_sensor("uc3")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_UC6_QE, description={"suggested_value": _find_sensor("uc6_qe")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_UC6_QP, description={"suggested_value": _find_sensor("uc6_qp")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_ASOS, description={"suggested_value": _find_sensor("asos")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_ARIM, description={"suggested_value": _find_sensor("arim")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            vol.Optional(
+                CONF_ARERA_DISPBT, description={"suggested_value": _find_sensor("dispbt")}
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+        }
 
         return self.async_show_form(
             step_id="arera",
@@ -435,17 +444,291 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    # =========================================================================
+    # FLUSSO ACQUA (SERVIZIO IDRICO)
+    # =========================================================================
+    async def async_step_water_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configurazione iniziale per la bolletta dell'acqua."""
+        errors: dict[str, str] = {}
+        operators = load_operators_and_offers(COMMODITY_WATER)
+        operator_options = [
+            SelectOptionDict(value=op_id, label=op_data["name"])
+            for op_id, op_data in operators.items()
+        ]
+        if not operator_options:
+            operator_options = [SelectOptionDict(value="custom_water", label="Gestore Idrico Personalizzato")]
+
+        default_op = "acea" if "acea" in operators else operator_options[0]["value"]
+
+        if user_input is not None:
+            self._user_data.update(user_input)
+            return await self.async_step_water_offer()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("name", default="Bolletta Acqua"): cv.string,
+                vol.Required(
+                    CONF_OPERATOR, default=default_op
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=operator_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(CONF_WATER_SENSOR): EntitySelector(
+                    EntitySelectorConfig(domain="sensor")
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="water_init",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
+    async def async_step_water_offer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Selezione della tariffa idrica dell'operatore."""
+        errors: dict[str, str] = {}
+        operators = load_operators_and_offers(COMMODITY_WATER)
+        op_id = self._user_data.get(CONF_OPERATOR, "custom_water")
+        op_data = operators.get(op_id, {})
+        offers = op_data.get("offers", {})
+
+        offer_options = [
+            SelectOptionDict(
+                value=off_id,
+                label=f"{off['name']}" + (f" ({off['description']})" if off.get("description") else ""),
+            )
+            for off_id, off in offers.items()
+        ]
+
+        if not offer_options:
+            offer_options = [SelectOptionDict(value="default", label="Tariffa Base")]
+
+        default_offer = offer_options[0]["value"]
+
+        if user_input is not None:
+            chosen_offer_id = user_input.get(CONF_OFFER, default_offer)
+            self._user_data[CONF_OFFER] = chosen_offer_id
+
+            chosen_offer = offers.get(chosen_offer_id, {})
+            for key, val in chosen_offer.items():
+                self._user_data[key] = val
+
+            return await self.async_step_water_params()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_OFFER, default=default_offer
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=offer_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+
+        return self.async_show_form(
+            step_id="water_offer",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={"operator": op_data.get("name", op_id.capitalize())},
+        )
+
+    async def async_step_water_params(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Parametri delle quote fisse, scaglioni e tariffe al m³ dell'acqua."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            self._user_data.update(user_input)
+            title = self._user_data.get("name", "Bolletta Acqua")
+            return self.async_create_entry(title=title, data=self._user_data)
+
+        defaults = {**DEFAULT_WATER_VALUES, **self._user_data}
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_QF_IDRICO, default=float(defaults.get(CONF_QF_IDRICO, 33.60))
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.0, max=500.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Required(
+                    CONF_QF_FOGNATURA, default=float(defaults.get(CONF_QF_FOGNATURA, 4.90))
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.0, max=200.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Required(
+                    CONF_QF_DEPURAZIONE, default=float(defaults.get(CONF_QF_DEPURAZIONE, 14.70))
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.0, max=200.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Required(
+                    CONF_USA_FOGNATURA_DEPURAZIONE,
+                    default=bool(defaults.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+                ): bool,
+                vol.Required(
+                    CONF_S1, default=float(defaults.get(CONF_S1, 55.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=500.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_S2, default=float(defaults.get(CONF_S2, 108.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1000.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_S3, default=float(defaults.get(CONF_S3, 162.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1000.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_S4, default=float(defaults.get(CONF_S4, 216.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1000.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_AGEVOLATA, default=float(defaults.get(CONF_T_AGEVOLATA, 0.4445))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=10.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_BASE, default=float(defaults.get(CONF_T_BASE, 1.2583))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=10.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_ECC1, default=float(defaults.get(CONF_T_ECC1, 1.8874))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=10.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_ECC2, default=float(defaults.get(CONF_T_ECC2, 2.5166))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=15.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_ECC3, default=float(defaults.get(CONF_T_ECC3, 3.7748))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=20.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_FOGNATURA, default=float(defaults.get(CONF_T_FOGNATURA, 0.3525))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=5.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_DEPURAZIONE, default=float(defaults.get(CONF_T_DEPURAZIONE, 0.7049))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=5.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_UI1, default=float(defaults.get(CONF_UI1, 0.004))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_UI2, default=float(defaults.get(CONF_UI2, 0.009))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_UI3, default=float(defaults.get(CONF_UI3, 0.005))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_IVA, default=float(defaults.get(CONF_IVA, 10.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=50.0, step="any", unit_of_measurement="%", mode=NumberSelectorMode.BOX)
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="water_params",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
+    # =========================================================================
+    # FLUSSO GAS NATURALE (PREDISPOSIZIONE)
+    # =========================================================================
+    async def async_step_gas_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configurazione iniziale per la fornitura di gas naturale."""
+        errors: dict[str, str] = {}
+        operators = load_operators_and_offers(COMMODITY_GAS)
+        operator_options = [
+            SelectOptionDict(value=op_id, label=op_data["name"])
+            for op_id, op_data in operators.items()
+        ]
+        if not operator_options:
+            operator_options = [SelectOptionDict(value="custom_gas", label="Fornitore Gas Personalizzato")]
+
+        default_op = operator_options[0]["value"]
+
+        if user_input is not None:
+            self._user_data.update(user_input)
+            title = self._user_data.get("name", "Bolletta Gas")
+            return self.async_create_entry(title=title, data=self._user_data)
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("name", default="Bolletta Gas"): cv.string,
+                vol.Required(
+                    CONF_OPERATOR, default=default_op
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=operator_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required("qf_anno", default=96.0): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=500.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required("spread", default=0.05): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=2.0, step="any", unit_of_measurement="€/Smc", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(CONF_IVA, default=10.0): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=50.0, step="any", unit_of_measurement="%", mode=NumberSelectorMode.BOX)
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="gas_init",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> config_entries.OptionsFlow:
+    ) -> BollettaOptionsFlowHandler:
         """Restituisce il gestore delle opzioni."""
         return BollettaOptionsFlowHandler(config_entry)
 
 
 class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
-    """Gestione dell'Options Flow per Bolletta."""
+    """Gestione delle opzioni (Options Flow) per Bolletta."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Inizializza."""
@@ -454,7 +737,138 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Gestisce le opzioni modificabili."""
+        """Gestisce il menu opzioni in base alla commodity."""
+        commodity = self.config_entry.data.get(CONF_COMMODITY, COMMODITY_ENERGY)
+
+        if commodity == COMMODITY_WATER:
+            return await self.async_step_water_options(user_input)
+        return await self.async_step_energy_options(user_input)
+
+    async def async_step_water_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Opzioni per il servizio idrico."""
+        if user_input is not None:
+            clean_input = {k: v for k, v in user_input.items() if v is not None}
+            return self.async_create_entry(title="", data=clean_input)
+
+        entry_data = {**self.config_entry.data, **self.config_entry.options}
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_WATER_SENSOR,
+                    description={"suggested_value": entry_data.get(CONF_WATER_SENSOR)},
+                ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+                vol.Required(
+                    CONF_QF_IDRICO,
+                    default=float(entry_data.get(CONF_QF_IDRICO, 33.60)),
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=500.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_QF_FOGNATURA,
+                    default=float(entry_data.get(CONF_QF_FOGNATURA, 4.90)),
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=200.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_QF_DEPURAZIONE,
+                    default=float(entry_data.get(CONF_QF_DEPURAZIONE, 14.70)),
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=200.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_USA_FOGNATURA_DEPURAZIONE,
+                    default=bool(entry_data.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+                ): bool,
+                vol.Required(
+                    CONF_S1, default=float(entry_data.get(CONF_S1, 55.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=500.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_S2, default=float(entry_data.get(CONF_S2, 108.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1000.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_S3, default=float(entry_data.get(CONF_S3, 162.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1000.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_S4, default=float(entry_data.get(CONF_S4, 216.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1000.0, step=1.0, unit_of_measurement="m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_AGEVOLATA, default=float(entry_data.get(CONF_T_AGEVOLATA, 0.4445))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=10.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_BASE, default=float(entry_data.get(CONF_T_BASE, 1.2583))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=10.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_ECC1, default=float(entry_data.get(CONF_T_ECC1, 1.8874))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=10.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_ECC2, default=float(entry_data.get(CONF_T_ECC2, 2.5166))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=15.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_ECC3, default=float(entry_data.get(CONF_T_ECC3, 3.7748))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=20.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_FOGNATURA, default=float(entry_data.get(CONF_T_FOGNATURA, 0.3525))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=5.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_T_DEPURAZIONE, default=float(entry_data.get(CONF_T_DEPURAZIONE, 0.7049))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=5.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_UI1, default=float(entry_data.get(CONF_UI1, 0.004))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_UI2, default=float(entry_data.get(CONF_UI2, 0.009))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_UI3, default=float(entry_data.get(CONF_UI3, 0.005))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=1.0, step="any", unit_of_measurement="€/m³", mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    CONF_IVA, default=float(entry_data.get(CONF_IVA, 10.0))
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0.0, max=50.0, step="any", unit_of_measurement="%", mode=NumberSelectorMode.BOX)
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+        )
+
+    async def async_step_energy_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Opzioni per la fornitura di energia elettrica."""
         if user_input is not None:
             clean_input = {k: v for k, v in user_input.items() if v is not None}
             return self.async_create_entry(title="", data=clean_input)
@@ -465,7 +879,7 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
             {
                 vol.Required(
                     CONF_POWER_KW,
-                    default=entry_data.get(CONF_POWER_KW, DEFAULT_POWER_KW),
+                    default=float(entry_data.get(CONF_POWER_KW, DEFAULT_POWER_KW)),
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=1.0,

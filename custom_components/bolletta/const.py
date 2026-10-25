@@ -2,7 +2,19 @@
 
 DOMAIN = "bolletta"
 
-# Operatori supportati
+# Tipi di fornitura / Commodity
+CONF_COMMODITY = "commodity"
+COMMODITY_ENERGY = "energy"
+COMMODITY_WATER = "water"
+COMMODITY_GAS = "gas"
+
+COMMODITIES = {
+    COMMODITY_ENERGY: "Energia Elettrica (Luce)",
+    COMMODITY_WATER: "Acqua (Servizio Idrico)",
+    COMMODITY_GAS: "Gas Naturale",
+}
+
+# Operatori supportati energia
 OPERATOR_ENGIE = "engie"
 OPERATOR_OCTOPUS = "octopus"
 OPERATOR_DOLOMITI = "dolomiti"
@@ -119,3 +131,47 @@ FALLBACK_ARERA = {
     "arim": 0.001638,
     "dispbt": 1.107,
 }
+
+# Parametri e chiavi per la bolletta Acqua (Servizio Idrico)
+CONF_WATER_SENSOR = "water_sensor"
+CONF_QF_IDRICO = "qf_idrico"
+CONF_QF_FOGNATURA = "qf_fognatura"
+CONF_QF_DEPURAZIONE = "qf_depurazione"
+CONF_USA_FOGNATURA_DEPURAZIONE = "usa_fognatura_depurazione"
+CONF_S1 = "s1"
+CONF_S2 = "s2"
+CONF_S3 = "s3"
+CONF_S4 = "s4"
+CONF_T_AGEVOLATA = "t_agevolata"
+CONF_T_BASE = "t_base"
+CONF_T_ECC1 = "t_ecc1"
+CONF_T_ECC2 = "t_ecc2"
+CONF_T_ECC3 = "t_ecc3"
+CONF_T_FOGNATURA = "t_fognatura"
+CONF_T_DEPURAZIONE = "t_depurazione"
+CONF_UI1 = "ui1"
+CONF_UI2 = "ui2"
+CONF_UI3 = "ui3"
+
+DEFAULT_WATER_VALUES = {
+    CONF_QF_IDRICO: 33.60,
+    CONF_QF_FOGNATURA: 4.90,
+    CONF_QF_DEPURAZIONE: 14.70,
+    CONF_USA_FOGNATURA_DEPURAZIONE: True,
+    CONF_S1: 55.0,
+    CONF_S2: 108.0,
+    CONF_S3: 162.0,
+    CONF_S4: 216.0,
+    CONF_T_AGEVOLATA: 0.4445,
+    CONF_T_BASE: 1.2583,
+    CONF_T_ECC1: 1.8874,
+    CONF_T_ECC2: 2.5166,
+    CONF_T_ECC3: 3.7748,
+    CONF_T_FOGNATURA: 0.3525,
+    CONF_T_DEPURAZIONE: 0.7049,
+    CONF_UI1: 0.004,
+    CONF_UI2: 0.009,
+    CONF_UI3: 0.005,
+    CONF_IVA: 10.0,
+}
+
