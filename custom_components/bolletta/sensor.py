@@ -380,7 +380,7 @@ class PrezzoFissoGiornalieroSensor(BollettaBaseSensor):
         """Calcola la quota fissa giornaliera."""
         cfg = self.config
         pcv = float(cfg.get(CONF_PCV, 69.88))
-        dispbt_cfg = float(cfg.get(CONF_DISPBT, -10.77))
+        dispbt_cfg = float(cfg.get(CONF_DISPBT, FALLBACK_ARERA["dispbt"]))
         dispbt = self._get_float_state(cfg.get(CONF_ARERA_DISPBT), dispbt_cfg)
         power_kw = float(cfg.get(CONF_POWER_KW, DEFAULT_POWER_KW))
         iva = float(cfg.get(CONF_IVA, 10.0))

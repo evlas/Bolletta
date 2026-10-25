@@ -108,5 +108,5 @@ FALLBACK_ARERA = {
     "uc6_qp": 0.1988,
     "asos": 0.028657,
     "arim": 0.001638,
-    "dispbt": -10.77,
+    "dispbt": 1.107,
 }
