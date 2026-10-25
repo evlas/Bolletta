@@ -49,6 +49,13 @@
           "arera_arim": "Arim Other Charges Sensor"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to sensor",
+      "unknown": "An unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This contract is already configured"
     }
   },
   "options": {

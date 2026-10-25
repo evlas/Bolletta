@@ -1,6 +1,7 @@
 """Config Flow per l'integrazione Bolletta Elettrica."""
 from __future__ import annotations
 
+import logging
 from typing import Any
 import voluptuous as vol
 
@@ -8,6 +9,17 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
@@ -42,6 +54,8 @@ from .const import (
     POWER_PRESETS,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Gestione del Config Flow per Bolletta."""
@@ -56,6 +70,8 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Primo step: Nome, Operatore, Potenza impegnata e Fasce orarie."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             self._user_data.update(user_input)
             return await self.async_step_pun()
@@ -65,64 +81,77 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("name", default="Bolletta Luce"): cv.string,
                 vol.Required(
                     CONF_OPERATOR, default=OPERATOR_ENGIE
-                ): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
+                ): SelectSelector(
+                    SelectSelectorConfig(
                         options=[
-                            selector.SelectOptionDict(value=k, label=v)
+                            SelectOptionDict(value=k, label=v)
                             for k, v in OPERATORS.items()
                         ],
-                        mode=selector.SelectSelectorMode.DROPDOWN,
+                        mode=SelectSelectorMode.DROPDOWN,
                     )
                 ),
                 vol.Required(
                     CONF_POWER_KW, default=DEFAULT_POWER_KW
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=1.0,
                         max=30.0,
                         step=0.5,
                         unit_of_measurement="kW",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_USE_MULTIORARIO, default=True
-                ): selector.BooleanSelector(),
+                ): bool,
             }
         )
 
         return self.async_show_form(
             step_id="user",
             data_schema=data_schema,
+            errors=errors,
         )
 
     async def async_step_pun(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Secondo step: Selezione delle entità PUN da Home Assistant."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            self._user_data.update(user_input)
-            return await self.async_step_operator_params()
+            try:
+                # Pulisce i valori vuoti o None
+                clean_input = {k: v for k, v in user_input.items() if v}
+                self._user_data.update(clean_input)
+                return await self.async_step_operator_params()
+            except Exception as err:
+                _LOGGER.exception("Errore durante il salvataggio dei PUN: %s", err)
+                errors["base"] = "unknown"
 
         multiorario = self._user_data.get(CONF_USE_MULTIORARIO, True)
 
-        schema_dict: dict[Any, Any] = {
-            vol.Optional(CONF_PUN_F0): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
-            ),
-        }
+        schema_dict: dict[Any, Any] = {}
 
         if multiorario:
             schema_dict.update(
                 {
-                    vol.Required(CONF_PUN_F1): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor")
+                    vol.Required(CONF_PUN_F1): EntitySelector(
+                        EntitySelectorConfig(domain="sensor")
                     ),
-                    vol.Required(CONF_PUN_F2): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor")
+                    vol.Required(CONF_PUN_F2): EntitySelector(
+                        EntitySelectorConfig(domain="sensor")
                     ),
-                    vol.Required(CONF_PUN_F3): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor")
+                    vol.Required(CONF_PUN_F3): EntitySelector(
+                        EntitySelectorConfig(domain="sensor")
+                    ),
+                }
+            )
+        else:
+            schema_dict.update(
+                {
+                    vol.Required(CONF_PUN_F0): EntitySelector(
+                        EntitySelectorConfig(domain="sensor")
                     ),
                 }
             )
@@ -130,15 +159,23 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="pun",
             data_schema=vol.Schema(schema_dict),
+            errors=errors,
         )
 
     async def async_step_operator_params(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Terzo step: Parametri contrattuali dell'operatore."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            self._user_data.update(user_input)
-            return await self.async_step_arera()
+            try:
+                clean_input = {k: v for k, v in user_input.items() if v is not None}
+                self._user_data.update(clean_input)
+                return await self.async_step_arera()
+            except Exception as err:
+                _LOGGER.exception("Errore nei parametri operatore: %s", err)
+                errors["base"] = "unknown"
 
         operator = self._user_data.get(CONF_OPERATOR, OPERATOR_ENGIE)
         preset = OPERATOR_PRESETS.get(operator, OPERATOR_PRESETS[OPERATOR_ENGIE])
@@ -146,83 +183,83 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Required(
-                    CONF_CCL, default=preset["ccl"]
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    CONF_CCL, default=float(preset["ccl"])
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=1.0,
-                        step=0.000001,
+                        max=2.0,
+                        step="any",
                         unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
-                    CONF_PCV, default=preset["pcv"]
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    CONF_PCV, default=float(preset["pcv"])
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=500.0,
-                        step=0.01,
+                        max=1000.0,
+                        step="any",
                         unit_of_measurement="€/anno",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
-                    CONF_DISPBT, default=preset["dispbt"]
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=-100.0,
-                        max=100.0,
-                        step=0.01,
+                    CONF_DISPBT, default=float(preset["dispbt"])
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=-200.0,
+                        max=200.0,
+                        step="any",
                         unit_of_measurement="€/anno",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
-                    CONF_PD, default=preset["pd"]
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    CONF_PD, default=float(preset["pd"])
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.0,
+                        max=2.0,
+                        step="any",
+                        unit_of_measurement="€/kWh",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(
+                    CONF_PD_FORFETTARIO, default=float(preset["pd_forfettario"])
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.0,
+                        max=2.0,
+                        step="any",
+                        unit_of_measurement="€/kWh",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(
+                    CONF_INCLUDE_LOSSES, default=bool(preset["include_losses"])
+                ): bool,
+                vol.Required(
+                    CONF_ACCISA, default=float(preset["accisa"])
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
                         max=1.0,
-                        step=0.000001,
+                        step="any",
                         unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
-                    CONF_PD_FORFETTARIO, default=preset["pd_forfettario"]
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    CONF_IVA, default=float(preset["iva"])
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=1.0,
-                        step=0.000001,
-                        unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Required(
-                    CONF_INCLUDE_LOSSES, default=preset["include_losses"]
-                ): selector.BooleanSelector(),
-                vol.Required(
-                    CONF_ACCISA, default=preset["accisa"]
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0.0,
-                        max=0.5,
-                        step=0.000001,
-                        unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Required(
-                    CONF_IVA, default=preset["iva"]
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0.0,
-                        max=30.0,
-                        step=0.5,
+                        max=50.0,
+                        step="any",
                         unit_of_measurement="%",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
             }
@@ -231,62 +268,49 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="operator_params",
             data_schema=data_schema,
+            errors=errors,
         )
 
     async def async_step_arera(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Quarto step: Collegamento entità ARERA (opzionale o auto-rilevamento)."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            self._user_data.update(user_input)
+            clean_input = {k: v for k, v in user_input.items() if v}
+            self._user_data.update(clean_input)
             title = self._user_data.get("name", f"Bolletta {self._user_data.get(CONF_OPERATOR, '')}")
             return self.async_create_entry(title=title, data=self._user_data)
 
-        # Prova a rilevare automaticamente entità ARERA standard se presenti nel registro
-        def find_arera(entity_id: str) -> str | None:
-            state = self.hass.states.get(entity_id)
-            return entity_id if state is not None else None
+        # Rileva automaticamente entità ARERA standard se presenti nel registro
+        schema_dict: dict[Any, Any] = {}
+        arera_pairs = [
+            (CONF_ARERA_S1, "sensor.arera_quota_fissa"),
+            (CONF_ARERA_S2, "sensor.arera_quota_potenza"),
+            (CONF_ARERA_S3, "sensor.arera_quota_energia"),
+            (CONF_ARERA_UC3, "sensor.arera_uc3"),
+            (CONF_ARERA_UC6_QE, "sensor.arera_uc6_qe"),
+            (CONF_ARERA_UC6_QP, "sensor.arera_uc6_qp"),
+            (CONF_ARERA_ASOS, "sensor.arera_asos"),
+            (CONF_ARERA_ARIM, "sensor.arera_arim"),
+        ]
 
-        data_schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_ARERA_S1,
-                    description={"suggested_value": find_arera("sensor.arera_quota_fissa")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_ARERA_S2,
-                    description={"suggested_value": find_arera("sensor.arera_quota_potenza")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_ARERA_S3,
-                    description={"suggested_value": find_arera("sensor.arera_quota_energia")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_ARERA_UC3,
-                    description={"suggested_value": find_arera("sensor.arera_uc3")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_ARERA_UC6_QE,
-                    description={"suggested_value": find_arera("sensor.arera_uc6_qe")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_ARERA_UC6_QP,
-                    description={"suggested_value": find_arera("sensor.arera_uc6_qp")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_ARERA_ASOS,
-                    description={"suggested_value": find_arera("sensor.arera_asos")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_ARERA_ARIM,
-                    description={"suggested_value": find_arera("sensor.arera_arim")},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-            }
-        )
+        for conf_key, entity_id in arera_pairs:
+            state = self.hass.states.get(entity_id)
+            if state is not None:
+                schema_dict[
+                    vol.Optional(conf_key, description={"suggested_value": entity_id})
+                ] = EntitySelector(EntitySelectorConfig(domain="sensor"))
+            else:
+                schema_dict[vol.Optional(conf_key)] = EntitySelector(
+                    EntitySelectorConfig(domain="sensor")
+                )
 
         return self.async_show_form(
             step_id="arera",
-            data_schema=data_schema,
+            data_schema=vol.Schema(schema_dict),
+            errors=errors,
         )
 
     @staticmethod
@@ -310,7 +334,8 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Gestisce le opzioni modificabili."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            clean_input = {k: v for k, v in user_input.items() if v is not None}
+            return self.async_create_entry(title="", data=clean_input)
 
         entry_data = {**self.config_entry.data, **self.config_entry.options}
 
@@ -319,119 +344,119 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_POWER_KW,
                     default=entry_data.get(CONF_POWER_KW, DEFAULT_POWER_KW),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=1.0,
                         max=30.0,
                         step=0.5,
                         unit_of_measurement="kW",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_CCL,
-                    default=entry_data.get(CONF_CCL, 0.0152),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    default=float(entry_data.get(CONF_CCL, 0.0152)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=1.0,
-                        step=0.000001,
+                        max=2.0,
+                        step="any",
                         unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_PCV,
-                    default=entry_data.get(CONF_PCV, 69.88),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    default=float(entry_data.get(CONF_PCV, 69.88)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=500.0,
-                        step=0.01,
+                        max=1000.0,
+                        step="any",
                         unit_of_measurement="€/anno",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_DISPBT,
-                    default=entry_data.get(CONF_DISPBT, -10.77),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=-100.0,
-                        max=100.0,
-                        step=0.01,
+                    default=float(entry_data.get(CONF_DISPBT, -10.77)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=-200.0,
+                        max=200.0,
+                        step="any",
                         unit_of_measurement="€/anno",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_PD,
-                    default=entry_data.get(CONF_PD, 0.0018),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    default=float(entry_data.get(CONF_PD, 0.0018)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=1.0,
-                        step=0.000001,
+                        max=2.0,
+                        step="any",
                         unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_PD_FORFETTARIO,
-                    default=entry_data.get(CONF_PD_FORFETTARIO, 0.0),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    default=float(entry_data.get(CONF_PD_FORFETTARIO, 0.0)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=1.0,
-                        step=0.000001,
+                        max=2.0,
+                        step="any",
                         unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_INCLUDE_LOSSES,
-                    default=entry_data.get(CONF_INCLUDE_LOSSES, True),
-                ): selector.BooleanSelector(),
+                    default=bool(entry_data.get(CONF_INCLUDE_LOSSES, True)),
+                ): bool,
                 vol.Required(
                     CONF_ACCISA,
-                    default=entry_data.get(CONF_ACCISA, 0.0227),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    default=float(entry_data.get(CONF_ACCISA, 0.0227)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=0.5,
-                        step=0.000001,
+                        max=1.0,
+                        step="any",
                         unit_of_measurement="€/kWh",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Required(
                     CONF_IVA,
-                    default=entry_data.get(CONF_IVA, 10.0),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
+                    default=float(entry_data.get(CONF_IVA, 10.0)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
                         min=0.0,
-                        max=30.0,
-                        step=0.5,
+                        max=50.0,
+                        step="any",
                         unit_of_measurement="%",
-                        mode=selector.NumberSelectorMode.BOX,
+                        mode=NumberSelectorMode.BOX,
                     )
                 ),
                 vol.Optional(
                     CONF_PUN_F0,
                     description={"suggested_value": entry_data.get(CONF_PUN_F0)},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                ): EntitySelector(EntitySelectorConfig(domain="sensor")),
                 vol.Optional(
                     CONF_PUN_F1,
                     description={"suggested_value": entry_data.get(CONF_PUN_F1)},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                ): EntitySelector(EntitySelectorConfig(domain="sensor")),
                 vol.Optional(
                     CONF_PUN_F2,
                     description={"suggested_value": entry_data.get(CONF_PUN_F2)},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                ): EntitySelector(EntitySelectorConfig(domain="sensor")),
                 vol.Optional(
                     CONF_PUN_F3,
                     description={"suggested_value": entry_data.get(CONF_PUN_F3)},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                ): EntitySelector(EntitySelectorConfig(domain="sensor")),
             }
         )
 

@@ -49,6 +49,13 @@
           "arera_arim": "Sensore Arim (Rimanenti Oneri)"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Impossibile collegarsi al sensore",
+      "unknown": "Si è verificato un errore imprevisto"
+    },
+    "abort": {
+      "already_configured": "Questo contratto è già configurato"
     }
   },
   "options": {
