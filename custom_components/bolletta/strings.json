@@ -73,5 +73,33 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "prezzo_unitario_f0": {
+        "name": "Single-rate unit price (F0)"
+      },
+      "prezzo_unitario_f1": {
+        "name": "Peak band unit price (F1)"
+      },
+      "prezzo_unitario_f2": {
+        "name": "Mid-peak band unit price (F2)"
+      },
+      "prezzo_unitario_f3": {
+        "name": "Off-peak band unit price (F3)"
+      },
+      "prezzo_unitario_attuale": {
+        "name": "Current unit price"
+      },
+      "fascia_attuale": {
+        "name": "Current tariff band"
+      },
+      "prezzo_fisso_giornaliero": {
+        "name": "Daily fixed fee"
+      },
+      "costo_fisso_mensile": {
+        "name": "Monthly fixed fee"
+      }
+    }
   }
 }

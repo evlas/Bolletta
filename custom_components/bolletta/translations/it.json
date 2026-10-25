@@ -73,5 +73,33 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "prezzo_unitario_f0": {
+        "name": "Prezzo unitario F0"
+      },
+      "prezzo_unitario_f1": {
+        "name": "Prezzo unitario F1"
+      },
+      "prezzo_unitario_f2": {
+        "name": "Prezzo unitario F2"
+      },
+      "prezzo_unitario_f3": {
+        "name": "Prezzo unitario F3"
+      },
+      "prezzo_unitario_attuale": {
+        "name": "Prezzo unitario attuale"
+      },
+      "fascia_attuale": {
+        "name": "Fascia attuale"
+      },
+      "prezzo_fisso_giornaliero": {
+        "name": "Prezzo fisso giornaliero"
+      },
+      "costo_fisso_mensile": {
+        "name": "Costo fisso mensile"
+      }
+    }
   }
 }

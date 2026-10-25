@@ -73,7 +73,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = []
 
     # Sensori Prezzo F0, F1, F2, F3
-    f0_sensor = PrezzoEnergiaSensor(hass, entry, "f0", "Prezzo Unitario F0", contract_name, operator_name)
+    f0_sensor = PrezzoEnergiaSensor(hass, entry, "f0", "prezzo_unitario_f0", contract_name, operator_name)
     entities.append(f0_sensor)
 
     f1_sensor = None
@@ -81,9 +81,9 @@ async def async_setup_entry(
     f3_sensor = None
 
     if multiorario:
-        f1_sensor = PrezzoEnergiaSensor(hass, entry, "f1", "Prezzo Unitario F1", contract_name, operator_name)
-        f2_sensor = PrezzoEnergiaSensor(hass, entry, "f2", "Prezzo Unitario F2", contract_name, operator_name)
-        f3_sensor = PrezzoEnergiaSensor(hass, entry, "f3", "Prezzo Unitario F3", contract_name, operator_name)
+        f1_sensor = PrezzoEnergiaSensor(hass, entry, "f1", "prezzo_unitario_f1", contract_name, operator_name)
+        f2_sensor = PrezzoEnergiaSensor(hass, entry, "f2", "prezzo_unitario_f2", contract_name, operator_name)
+        f3_sensor = PrezzoEnergiaSensor(hass, entry, "f3", "prezzo_unitario_f3", contract_name, operator_name)
         entities.extend([f1_sensor, f2_sensor, f3_sensor])
 
     # Sensore Prezzo Attuale (dinamico in base all'ora e giorno)
@@ -91,8 +91,7 @@ async def async_setup_entry(
         PrezzoAttualeSensor(
             hass,
             entry,
-            "prezzo_attuale",
-            "Prezzo Unitario Attuale",
+            "prezzo_unitario_attuale",
             contract_name,
             operator_name,
             f0_sensor,
@@ -104,19 +103,19 @@ async def async_setup_entry(
 
     # Sensore Fascia Attuale (F1, F2, F3)
     entities.append(
-        FasciaAttualeSensor(hass, entry, "fascia_attuale", "Fascia Attuale", contract_name, operator_name)
+        FasciaAttualeSensor(hass, entry, "fascia_attuale", contract_name, operator_name)
     )
 
     # Prezzo Fisso Giornaliero
     daily_fixed = PrezzoFissoGiornalieroSensor(
-        hass, entry, "prezzo_fisso_giornaliero", "Prezzo Fisso Giornaliero", contract_name, operator_name
+        hass, entry, "prezzo_fisso_giornaliero", contract_name, operator_name
     )
     entities.append(daily_fixed)
 
     # Costo Fisso Mensile Stimato
     entities.append(
         CostoFissoMensileSensor(
-            hass, entry, "costo_fisso_mensile", "Costo Fisso Mensile", contract_name, operator_name, daily_fixed
+            hass, entry, "costo_fisso_mensile", contract_name, operator_name, daily_fixed
         )
     )
 
@@ -132,17 +131,16 @@ class BollettaBaseSensor(SensorEntity):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        key: str,
-        name: str,
+        translation_key: str,
         contract_name: str,
         operator_name: str,
     ) -> None:
         """Inizializza il sensore base."""
         self.hass = hass
         self.entry = entry
-        self._key = key
-        self._attr_name = name
-        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._key = translation_key
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"{entry.entry_id}_{translation_key}"
         self._contract_name = contract_name
         self._operator_name = operator_name
 
@@ -184,12 +182,12 @@ class PrezzoEnergiaSensor(BollettaBaseSensor):
         hass: HomeAssistant,
         entry: ConfigEntry,
         fascia: str,
-        name: str,
+        translation_key: str,
         contract_name: str,
         operator_name: str,
     ) -> None:
         """Inizializza il sensore di prezzo energia."""
-        super().__init__(hass, entry, f"prezzo_{fascia}", name, contract_name, operator_name)
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
         self._fascia = fascia
         self._attr_native_value: float | None = None
 
@@ -277,8 +275,7 @@ class PrezzoAttualeSensor(BollettaBaseSensor):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        key: str,
-        name: str,
+        translation_key: str,
         contract_name: str,
         operator_name: str,
         f0_sensor: PrezzoEnergiaSensor,
@@ -287,7 +284,7 @@ class PrezzoAttualeSensor(BollettaBaseSensor):
         f3_sensor: PrezzoEnergiaSensor | None,
     ) -> None:
         """Inizializza."""
-        super().__init__(hass, entry, key, name, contract_name, operator_name)
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
         self._f0 = f0_sensor
         self._f1 = f1_sensor
         self._f2 = f2_sensor
@@ -414,14 +411,13 @@ class CostoFissoMensileSensor(BollettaBaseSensor):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        key: str,
-        name: str,
+        translation_key: str,
         contract_name: str,
         operator_name: str,
         daily_sensor: PrezzoFissoGiornalieroSensor,
     ) -> None:
         """Inizializza."""
-        super().__init__(hass, entry, key, name, contract_name, operator_name)
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
         self._daily_sensor = daily_sensor
 
     def update(self) -> None:
