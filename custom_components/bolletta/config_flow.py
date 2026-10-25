@@ -26,6 +26,7 @@ from .const import (
     CONF_ACCISA,
     CONF_ARERA_ARIM,
     CONF_ARERA_ASOS,
+    CONF_ARERA_DISPBT,
     CONF_ARERA_S1,
     CONF_ARERA_S2,
     CONF_ARERA_S3,
@@ -36,6 +37,7 @@ from .const import (
     CONF_DISPBT,
     CONF_INCLUDE_LOSSES,
     CONF_IVA,
+    CONF_OFFER,
     CONF_OPERATOR,
     CONF_PCV,
     CONF_PD,
@@ -48,11 +50,9 @@ from .const import (
     CONF_USE_MULTIORARIO,
     DEFAULT_POWER_KW,
     DOMAIN,
-    OPERATOR_ENGIE,
-    OPERATOR_PRESETS,
-    OPERATORS,
-    POWER_PRESETS,
+    FALLBACK_ARERA,
 )
+from .operators_loader import load_operators_and_offers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,21 +72,28 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Primo step: Nome, Operatore, Potenza impegnata e Fasce orarie."""
         errors: dict[str, str] = {}
 
+        operators = load_operators_and_offers()
+        operator_options = [
+            SelectOptionDict(value=op_id, label=op_data["name"])
+            for op_id, op_data in operators.items()
+        ]
+        if not operator_options:
+            operator_options = [SelectOptionDict(value="custom", label="Personalizzato")]
+
+        default_op = "engie" if "engie" in operators else operator_options[0]["value"]
+
         if user_input is not None:
             self._user_data.update(user_input)
-            return await self.async_step_pun()
+            return await self.async_step_offer()
 
         data_schema = vol.Schema(
             {
                 vol.Required("name", default="Bolletta Luce"): cv.string,
                 vol.Required(
-                    CONF_OPERATOR, default=OPERATOR_ENGIE
+                    CONF_OPERATOR, default=default_op
                 ): SelectSelector(
                     SelectSelectorConfig(
-                        options=[
-                            SelectOptionDict(value=k, label=v)
-                            for k, v in OPERATORS.items()
-                        ],
+                        options=operator_options,
                         mode=SelectSelectorMode.DROPDOWN,
                     )
                 ),
@@ -113,10 +120,74 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_offer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Secondo step: Selezione dell'offerta specifica dell'operatore."""
+        errors: dict[str, str] = {}
+        operators = load_operators_and_offers()
+        op_id = self._user_data.get(CONF_OPERATOR, "custom")
+        op_data = operators.get(op_id, {})
+        offers = op_data.get("offers", {})
+
+        offer_options = [
+            SelectOptionDict(
+                value=off_id,
+                label=f"{off['name']}" + (f" ({off['description']})" if off.get("description") else ""),
+            )
+            for off_id, off in offers.items()
+        ]
+
+        if not offer_options:
+            offer_options = [SelectOptionDict(value="default", label="Offerta Standard")]
+
+        default_offer = offer_options[0]["value"]
+
+        if user_input is not None:
+            chosen_offer_id = user_input.get(CONF_OFFER, default_offer)
+            self._user_data[CONF_OFFER] = chosen_offer_id
+
+            # Carica i parametri dell'offerta selezionata
+            chosen_offer = offers.get(chosen_offer_id, {})
+            for key in (
+                CONF_CCL,
+                CONF_PCV,
+                CONF_DISPBT,
+                CONF_PD,
+                CONF_PD_FORFETTARIO,
+                CONF_INCLUDE_LOSSES,
+                CONF_ACCISA,
+                CONF_IVA,
+            ):
+                if key in chosen_offer:
+                    self._user_data[key] = chosen_offer[key]
+
+            return await self.async_step_pun()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_OFFER, default=default_offer
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=offer_options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+
+        return self.async_show_form(
+            step_id="offer",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={"operator": op_data.get("name", op_id.capitalize())},
+        )
+
     async def async_step_pun(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Secondo step: Selezione delle entità PUN da Home Assistant."""
+        """Terzo step: Selezione delle entità PUN da Home Assistant."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -165,7 +236,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_operator_params(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Terzo step: Parametri contrattuali dell'operatore."""
+        """Quarto step: Parametri contrattuali dell'operatore e dell'offerta."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -177,13 +248,19 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Errore nei parametri operatore: %s", err)
                 errors["base"] = "unknown"
 
-        operator = self._user_data.get(CONF_OPERATOR, OPERATOR_ENGIE)
-        preset = OPERATOR_PRESETS.get(operator, OPERATOR_PRESETS[OPERATOR_ENGIE])
+        ccl_val = float(self._user_data.get(CONF_CCL, 0.0152))
+        pcv_val = float(self._user_data.get(CONF_PCV, 69.88))
+        dispbt_val = float(self._user_data.get(CONF_DISPBT, FALLBACK_ARERA["dispbt"]))
+        pd_val = float(self._user_data.get(CONF_PD, 0.0018))
+        pd_forfettario_val = float(self._user_data.get(CONF_PD_FORFETTARIO, 0.0))
+        include_losses_val = bool(self._user_data.get(CONF_INCLUDE_LOSSES, True))
+        accisa_val = float(self._user_data.get(CONF_ACCISA, 0.0227))
+        iva_val = float(self._user_data.get(CONF_IVA, 10.0))
 
         data_schema = vol.Schema(
             {
                 vol.Required(
-                    CONF_CCL, default=float(preset["ccl"])
+                    CONF_CCL, default=ccl_val
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -194,7 +271,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_PCV, default=float(preset["pcv"])
+                    CONF_PCV, default=pcv_val
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -205,7 +282,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_DISPBT, default=float(preset["dispbt"])
+                    CONF_DISPBT, default=dispbt_val
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=-200.0,
@@ -216,7 +293,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_PD, default=float(preset["pd"])
+                    CONF_PD, default=pd_val
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -227,7 +304,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_PD_FORFETTARIO, default=float(preset["pd_forfettario"])
+                    CONF_PD_FORFETTARIO, default=pd_forfettario_val
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -238,10 +315,10 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_INCLUDE_LOSSES, default=bool(preset["include_losses"])
+                    CONF_INCLUDE_LOSSES, default=include_losses_val
                 ): bool,
                 vol.Required(
-                    CONF_ACCISA, default=float(preset["accisa"])
+                    CONF_ACCISA, default=accisa_val
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,
@@ -252,7 +329,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_IVA, default=float(preset["iva"])
+                    CONF_IVA, default=iva_val
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=0.0,

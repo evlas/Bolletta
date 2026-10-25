@@ -66,10 +66,11 @@ Easily links with existing **PUN** (Single National Price) sensors and regulated
 2. Click **Add Integration** in the bottom right corner.
 3. Search for **Bolletta Elettrica**.
 4. Follow the setup wizard:
-   - **Step 1: General**: Name your contract instance (e.g., *Bolletta Engie*), choose your supplier (**Engie**, **Octopus Energy**, **Dolomiti Energia**, or **Custom**), select contracted power (e.g., `3.0 kW`, `4.5 kW`, `6.0 kW`), and enable time-of-use tariffs.
-   - **Step 2: PUN Sensors**: Select your existing Home Assistant sensors for PUN (F0, F1, F2, F3).
-   - **Step 3: Contract Parameters**: Review prefilled preset parameters (Spread/CCL, PCV, DispBT, Dispatching, Excise, VAT 10%, 10% grid losses).
-   - **Step 4: ARERA Linking**: Select or confirm detected ARERA sensors.
+   - **Step 1: General**: Name your contract instance (e.g., *Bolletta Engie*), choose your supplier (**Engie**, **Octopus Energy**, **Dolomiti Energia**, **Custom**, or any added in `operators/`), select contracted power (e.g., `3.0 kW`, `4.5 kW`, `6.0 kW`), and enable time-of-use tariffs.
+   - **Step 2: Commercial Offer**: Pick the specific commercial plan (e.g., *Energia Chiara*, *Octopus Flex*, etc.) dynamically loaded from JSON/XML files.
+   - **Step 3: PUN Sensors**: Select your existing Home Assistant sensors for PUN (F0 for single-rate, or F1, F2, F3 for multi-rate).
+   - **Step 4: Contract Parameters**: Review prefilled parameters inherited from the chosen offer (Spread/CCL, PCV, DispBT, Dispatching, Excise, VAT 10%, 10% grid losses).
+   - **Step 5: ARERA Linking**: Select or confirm detected ARERA sensors.
 
 > [!TIP]
 > You can modify any parameter, contracted power, or spread anytime by clicking **Configure / Options** on the integration card without restarting.

@@ -1,0 +1,13 @@
+{
+  "id": "octopus_fissa",
+  "name": "Octopus Fissa 12M",
+  "description": "Tariffa con prezzo fisso della materia prima per 12 mesi",
+  "ccl": 0.025,
+  "pcv": 108.0,
+  "dispbt": 1.107,
+  "pd": 0.0018,
+  "pd_forfettario": 0.0,
+  "include_losses": true,
+  "accisa": 0.0227,
+  "iva": 10.0
+}

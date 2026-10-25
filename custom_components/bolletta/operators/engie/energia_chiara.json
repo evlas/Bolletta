@@ -1,0 +1,13 @@
+{
+  "id": "energia_chiara",
+  "name": "Energia Chiara (PUN + Spread)",
+  "description": "Offerta a prezzo indicizzato PUN con contributo al consumo",
+  "ccl": 0.0152,
+  "pcv": 69.88,
+  "dispbt": 1.107,
+  "pd": 0.0018,
+  "pd_forfettario": 0.0,
+  "include_losses": true,
+  "accisa": 0.0227,
+  "iva": 10.0
+}

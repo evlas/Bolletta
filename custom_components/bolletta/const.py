@@ -65,6 +65,7 @@ OPERATOR_PRESETS = {
 
 # Chiavi di configurazione
 CONF_OPERATOR = "operator"
+CONF_OFFER = "offer"
 CONF_POWER_KW = "power_kw"
 CONF_USE_MULTIORARIO = "use_multiorario"
 

@@ -11,6 +11,13 @@
           "use_multiorario": "Tariffa Multioraria (F1, F2, F3)"
         }
       },
+      "offer": {
+        "title": "Seleziona Offerta Commerciale",
+        "description": "Scegli l'offerta commerciale per {operator}.",
+        "data": {
+          "offer": "Offerta Commerciale"
+        }
+      },
       "pun": {
         "title": "Selezione Sensori PUN",
         "description": "Seleziona i sensori del Prezzo Unico Nazionale (PUN) già presenti in Home Assistant (ad es. da integrazione PUN Sensor).",

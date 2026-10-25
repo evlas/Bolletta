@@ -1,0 +1,13 @@
+{
+  "id": "personalizzata",
+  "name": "Offerta Personalizzata (JSON)",
+  "description": "Configurazione libera con parametri contrattuali definiti dall'utente",
+  "ccl": 0.015,
+  "pcv": 90.0,
+  "dispbt": 1.107,
+  "pd": 0.0018,
+  "pd_forfettario": 0.0,
+  "include_losses": true,
+  "accisa": 0.0227,
+  "iva": 10.0
+}

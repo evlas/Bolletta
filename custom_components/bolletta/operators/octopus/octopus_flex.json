@@ -1,0 +1,13 @@
+{
+  "id": "octopus_flex",
+  "name": "Octopus Flex (PUN + Alpha)",
+  "description": "Prezzo indicizzato al PUN con spread e commercializzazione fissa 8€/mese",
+  "ccl": 0.01628,
+  "pcv": 96.0,
+  "dispbt": 1.107,
+  "pd": 0.0018,
+  "pd_forfettario": 0.0,
+  "include_losses": true,
+  "accisa": 0.0227,
+  "iva": 10.0
+}

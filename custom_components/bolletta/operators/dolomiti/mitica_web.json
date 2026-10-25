@@ -1,0 +1,13 @@
+{
+  "id": "mitica_web",
+  "name": "Mitica Web Luce",
+  "description": "Offerta web a prezzo indicizzato PUN con commercializzazione 9.50€/mese",
+  "ccl": 0.0175,
+  "pcv": 114.0,
+  "dispbt": 1.107,
+  "pd": 0.0018,
+  "pd_forfettario": 0.0,
+  "include_losses": true,
+  "accisa": 0.0227,
+  "iva": 10.0
+}

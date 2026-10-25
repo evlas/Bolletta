@@ -11,6 +11,13 @@
           "use_multiorario": "Time-of-Use Tariff (F1, F2, F3)"
         }
       },
+      "offer": {
+        "title": "Select Commercial Offer",
+        "description": "Choose the commercial offer for {operator}.",
+        "data": {
+          "offer": "Commercial Offer"
+        }
+      },
       "pun": {
         "title": "Select PUN Sensors",
         "description": "Select National Single Price (PUN) sensors already available in Home Assistant.",

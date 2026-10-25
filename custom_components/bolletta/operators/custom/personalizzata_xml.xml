@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<offer>
+    <id>personalizzata_xml</id>
+    <name>Offerta Personalizzata (XML)</name>
+    <description>Esempio di offerta caricata da file XML</description>
+    <ccl>0.0180</ccl>
+    <pcv>96.00</pcv>
+    <dispbt>1.107</dispbt>
+    <pd>0.0018</pd>
+    <pd_forfettario>0.0</pd_forfettario>
+    <include_losses>true</include_losses>
+    <accisa>0.0227</accisa>
+    <iva>10.0</iva>
+</offer>

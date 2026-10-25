@@ -66,10 +66,11 @@ Si collega facilmente ai sensori **PUN** (Prezzo Unico Nazionale) esistenti e al
 2. Clicca su **Aggiungi Integrazione** in basso a destra.
 3. Cerca **Bolletta Elettrica**.
 4. Segui la procedura guidata:
-   - **Passo 1: Generale**: Assegna un nome all'istanza (es. *Bolletta Engie*), scegli l'operatore (**Engie**, **Octopus Energy**, **Dolomiti Energia** o **Personalizzato**), seleziona la potenza impegnata (es. `3.0 kW`, `4.5 kW`, `6.0 kW`) e abilita la tariffa multioraria.
-   - **Passo 2: Sensori PUN**: Seleziona i tuoi sensori PUN esistenti in Home Assistant (F0, F1, F2, F3).
-   - **Passo 3: Parametri Contrattuali**: Verifica i valori precompilati dell'offerta (Spread/CCL, PCV, DispBT, Dispacciamento, Accisa, IVA 10%, perdite di rete 10%).
-   - **Passo 4: Collegamento ARERA**: Conferma o seleziona le entità ARERA rilevate.
+   - **Passo 1: Generale**: Assegna un nome all'istanza (es. *Bolletta Engie*), scegli l'operatore (**Engie**, **Octopus Energy**, **Dolomiti Energia**, **Personalizzato** o qualsiasi altro aggiunto nella cartella `operators/`), seleziona la potenza impegnata (es. `3.0 kW`, `4.5 kW`, `6.0 kW`) e abilita la tariffa multioraria.
+   - **Passo 2: Offerta Commerciale**: Scegli l'offerta specifica del fornitore (es. *Energia Chiara*, *Energia Relax*, *Octopus Flex*, ecc.) caricata dinamicamente dai file JSON/XML.
+   - **Passo 3: Sensori PUN**: Seleziona i tuoi sensori PUN esistenti in Home Assistant (F0 se monorario, oppure F1, F2, F3 se multiorario).
+   - **Passo 4: Parametri Contrattuali**: Verifica i valori precompilati ereditati automaticamente dall'offerta scelta (Spread/CCL, PCV, DispBT, Dispacciamento, Accisa, IVA 10%, perdite di rete 10%).
+   - **Passo 5: Collegamento ARERA**: Conferma o seleziona le entità ARERA rilevate automaticamente.
 
 > [!TIP]
 > Puoi modificare qualsiasi parametro contrattuale, potenza impegnata o spread in ogni momento cliccando su **Configura / Opzioni** sulla scheda dell'integrazione senza dover riavviare.

@@ -49,6 +49,7 @@ from .const import (
     FALLBACK_ARERA,
     OPERATORS,
 )
+from .operators_loader import load_operators_and_offers
 from .tariffs import (
     compute_prezzo_energia,
     compute_prezzo_fisso_giornaliero,
@@ -66,7 +67,8 @@ async def async_setup_entry(
     """Configura i sensori Bolletta da ConfigEntry."""
     data = {**entry.data, **entry.options}
     operator = data.get(CONF_OPERATOR, "custom")
-    operator_name = OPERATORS.get(operator, operator.capitalize())
+    loaded_ops = load_operators_and_offers()
+    operator_name = loaded_ops.get(operator, {}).get("name", OPERATORS.get(operator, operator.capitalize()))
     contract_name = data.get("name", f"Bolletta {operator_name}")
 
     multiorario = data.get(CONF_USE_MULTIORARIO, True)
