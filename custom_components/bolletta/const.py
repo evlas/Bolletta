@@ -93,18 +93,20 @@ CONF_ARERA_UC6_QE = "arera_uc6_qe"
 CONF_ARERA_UC6_QP = "arera_uc6_qp"
 CONF_ARERA_ASOS = "arera_asos"
 CONF_ARERA_ARIM = "arera_arim"
+CONF_ARERA_DISPBT = "arera_dispbt"
 
 DEFAULT_POWER_KW = 3.0
 POWER_PRESETS = [1.5, 3.0, 4.5, 6.0, 10.0, 15.0]
 
 # Valori di fallback per ARERA se non sono disponibili sensori dedicati
 FALLBACK_ARERA = {
-    "s1": 24.40,
-    "s2": 23.50,
-    "s3": 0.0135,
-    "uc3": 0.0016,
-    "uc6_qe": 0.0001,
-    "uc6_qp": 0.0000,
-    "asos": 0.0345,
-    "arim": 0.0090,
+    "s1": 23.04,
+    "s2": 23.52,
+    "s3": 0.0119,
+    "uc3": 0.00276,
+    "uc6_qe": 0.00007,
+    "uc6_qp": 0.1988,
+    "asos": 0.028657,
+    "arim": 0.001638,
+    "dispbt": -10.77,
 }

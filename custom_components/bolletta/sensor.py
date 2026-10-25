@@ -23,6 +23,7 @@ from .const import (
     CONF_ACCISA,
     CONF_ARERA_ARIM,
     CONF_ARERA_ASOS,
+    CONF_ARERA_DISPBT,
     CONF_ARERA_S1,
     CONF_ARERA_S2,
     CONF_ARERA_S3,
@@ -362,7 +363,7 @@ class PrezzoFissoGiornalieroSensor(BollettaBaseSensor):
         watched_entities: set[str] = set()
         cfg = self.config
 
-        for arera_key in [CONF_ARERA_S1, CONF_ARERA_S2, CONF_ARERA_UC6_QP]:
+        for arera_key in [CONF_ARERA_S1, CONF_ARERA_S2, CONF_ARERA_UC6_QP, CONF_ARERA_DISPBT]:
             if cfg.get(arera_key):
                 watched_entities.add(cfg[arera_key])
 
@@ -379,7 +380,8 @@ class PrezzoFissoGiornalieroSensor(BollettaBaseSensor):
         """Calcola la quota fissa giornaliera."""
         cfg = self.config
         pcv = float(cfg.get(CONF_PCV, 69.88))
-        dispbt = float(cfg.get(CONF_DISPBT, -10.77))
+        dispbt_cfg = float(cfg.get(CONF_DISPBT, -10.77))
+        dispbt = self._get_float_state(cfg.get(CONF_ARERA_DISPBT), dispbt_cfg)
         power_kw = float(cfg.get(CONF_POWER_KW, DEFAULT_POWER_KW))
         iva = float(cfg.get(CONF_IVA, 10.0))
 

@@ -46,7 +46,8 @@
           "arera_uc6_qe": "Sensore UC6 Quota Energia",
           "arera_uc6_qp": "Sensore UC6 Quota Potenza",
           "arera_asos": "Sensore Asos (Rinnovabili)",
-          "arera_arim": "Sensore Arim (Rimanenti Oneri)"
+          "arera_arim": "Sensore Arim (Rimanenti Oneri)",
+          "arera_dispbt": "Sensore Dispacciamento DispBT"
         }
       }
     },

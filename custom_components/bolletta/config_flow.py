@@ -345,6 +345,13 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "sensor.arera_tariffe_regolate_arim",
                 ],
             ),
+            (
+                CONF_ARERA_DISPBT,
+                [
+                    "sensor.arera_dispbt",
+                    "sensor.arera_tariffe_regolate_dispbt",
+                ],
+            ),
         ]
 
         for conf_key, candidates in arera_candidates:

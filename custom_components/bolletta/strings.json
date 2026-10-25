@@ -46,7 +46,8 @@
           "arera_uc6_qe": "UC6 Energy Rate Sensor",
           "arera_uc6_qp": "UC6 Power Rate Sensor",
           "arera_asos": "Asos Renewable Sensor",
-          "arera_arim": "Arim Other Charges Sensor"
+          "arera_arim": "Arim Other Charges Sensor",
+          "arera_dispbt": "DispBT Dispatch Sensor"
         }
       }
     },
