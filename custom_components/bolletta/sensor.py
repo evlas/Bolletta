@@ -31,7 +31,8 @@ from .const import (
     CONF_ARERA_UC6_QE,
     CONF_ARERA_UC6_QP,
     CONF_CCL,
-    CONF_DISPBT,
+    CONF_FORMULA_ENERGIA,
+    CONF_FORMULA_QUOTA_FISSA,
     CONF_INCLUDE_LOSSES,
     CONF_IVA,
     CONF_OPERATOR,
@@ -53,6 +54,7 @@ from .operators_loader import load_operators_and_offers
 from .tariffs import (
     compute_prezzo_energia,
     compute_prezzo_fisso_giornaliero,
+    evaluate_formula,
     get_fascia_oraria,
 )
 
@@ -237,33 +239,69 @@ class PrezzoEnergiaSensor(BollettaBaseSensor):
                 pun = self._get_float_state(f1_entity, 0.0)
 
         ccl = float(cfg.get(CONF_CCL, 0.0152))
+        pcv = float(cfg.get(CONF_PCV, 69.88))
         pd = float(cfg.get(CONF_PD, 0.0018))
         pd_forfettario = float(cfg.get(CONF_PD_FORFETTARIO, 0.0))
         include_losses = bool(cfg.get(CONF_INCLUDE_LOSSES, True))
         accisa = float(cfg.get(CONF_ACCISA, 0.0227))
         iva = float(cfg.get(CONF_IVA, 10.0))
+        power_kw = float(cfg.get(CONF_POWER_KW, DEFAULT_POWER_KW))
 
         # ARERA
+        s1 = self._get_float_state(cfg.get(CONF_ARERA_S1), FALLBACK_ARERA["s1"])
+        s2 = self._get_float_state(cfg.get(CONF_ARERA_S2), FALLBACK_ARERA["s2"])
         s3 = self._get_float_state(cfg.get(CONF_ARERA_S3), FALLBACK_ARERA["s3"])
         uc3 = self._get_float_state(cfg.get(CONF_ARERA_UC3), FALLBACK_ARERA["uc3"])
-        uc6 = self._get_float_state(cfg.get(CONF_ARERA_UC6_QE), FALLBACK_ARERA["uc6_qe"])
+        uc6_qe = self._get_float_state(cfg.get(CONF_ARERA_UC6_QE), FALLBACK_ARERA["uc6_qe"])
+        uc6_qp = self._get_float_state(cfg.get(CONF_ARERA_UC6_QP), FALLBACK_ARERA["uc6_qp"])
         asos = self._get_float_state(cfg.get(CONF_ARERA_ASOS), FALLBACK_ARERA["asos"])
         arim = self._get_float_state(cfg.get(CONF_ARERA_ARIM), FALLBACK_ARERA["arim"])
+        dispbt = self._get_float_state(cfg.get(CONF_ARERA_DISPBT), FALLBACK_ARERA["dispbt"])
 
-        self._attr_native_value = compute_prezzo_energia(
+        context = {
+            "pun": pun,
+            "ccl": ccl,
+            "pcv": pcv,
+            "pd": pd,
+            "pd_forfettario": pd_forfettario,
+            "include_losses": include_losses,
+            "accisa": accisa,
+            "iva": iva,
+            "power_kw": power_kw,
+            "s1": s1,
+            "s2": s2,
+            "s3": s3,
+            "uc3": uc3,
+            "uc6_qe": uc6_qe,
+            "uc6_qp": uc6_qp,
+            "asos": asos,
+            "arim": arim,
+            "dispbt": dispbt,
+        }
+        for k, v in cfg.items():
+            if k not in context and isinstance(v, (int, float, bool)):
+                context[k] = v
+
+        fallback = compute_prezzo_energia(
             pun=pun,
             ccl=ccl,
             pd=pd,
             pd_forfettario=pd_forfettario,
             s3=s3,
             uc3=uc3,
-            uc6=uc6,
+            uc6=uc6_qe,
             asos=asos,
             arim=arim,
             accisa=accisa,
             iva_percent=iva,
             include_losses=include_losses,
         )
+
+        formula = cfg.get(CONF_FORMULA_ENERGIA)
+        if formula:
+            self._attr_native_value = round(evaluate_formula(formula, context, default=fallback), 6)
+        else:
+            self._attr_native_value = fallback
 
 
 class PrezzoAttualeSensor(BollettaBaseSensor):
@@ -382,8 +420,7 @@ class PrezzoFissoGiornalieroSensor(BollettaBaseSensor):
         """Calcola la quota fissa giornaliera."""
         cfg = self.config
         pcv = float(cfg.get(CONF_PCV, 69.88))
-        dispbt_cfg = float(cfg.get(CONF_DISPBT, FALLBACK_ARERA["dispbt"]))
-        dispbt = self._get_float_state(cfg.get(CONF_ARERA_DISPBT), dispbt_cfg)
+        dispbt = self._get_float_state(cfg.get(CONF_ARERA_DISPBT), FALLBACK_ARERA["dispbt"])
         power_kw = float(cfg.get(CONF_POWER_KW, DEFAULT_POWER_KW))
         iva = float(cfg.get(CONF_IVA, 10.0))
 
@@ -391,7 +428,23 @@ class PrezzoFissoGiornalieroSensor(BollettaBaseSensor):
         qp = self._get_float_state(cfg.get(CONF_ARERA_S2), FALLBACK_ARERA["s2"])
         uc6_qp = self._get_float_state(cfg.get(CONF_ARERA_UC6_QP), FALLBACK_ARERA["uc6_qp"])
 
-        self._attr_native_value = compute_prezzo_fisso_giornaliero(
+        context = {
+            "pcv": pcv,
+            "dispbt": dispbt,
+            "s1": qf,
+            "s2": qp,
+            "uc6_qp": uc6_qp,
+            "power_kw": power_kw,
+            "iva": iva,
+            "ccl": float(cfg.get(CONF_CCL, 0.0152)),
+            "pd": float(cfg.get(CONF_PD, 0.0018)),
+            "accisa": float(cfg.get(CONF_ACCISA, 0.0227)),
+        }
+        for k, v in cfg.items():
+            if k not in context and isinstance(v, (int, float, bool)):
+                context[k] = v
+
+        fallback = compute_prezzo_fisso_giornaliero(
             pcv=pcv,
             dispbt=dispbt,
             qf_s1=qf,
@@ -401,6 +454,12 @@ class PrezzoFissoGiornalieroSensor(BollettaBaseSensor):
             iva_percent=iva,
             decimals=4,
         )
+
+        formula = cfg.get(CONF_FORMULA_QUOTA_FISSA)
+        if formula:
+            self._attr_native_value = round(evaluate_formula(formula, context, default=fallback), 4)
+        else:
+            self._attr_native_value = fallback
 
 
 class CostoFissoMensileSensor(BollettaBaseSensor):

@@ -1,8 +1,86 @@
-"""Motore di calcolo tariffe e fasce orarie italiane (F1, F2, F3)."""
+"""Motore di calcolo tariffe, formule matematiche e fasce orarie italiane (F1, F2, F3)."""
 from __future__ import annotations
 
+import ast
 from datetime import date, datetime, timedelta
-from typing import Literal
+import logging
+import operator as op
+from typing import Any, Literal
+
+_LOGGER = logging.getLogger(__name__)
+
+# Operatori sicuri consentiti nelle formule
+SAFE_OPERATORS = {
+    ast.Add: op.add,
+    ast.Sub: op.sub,
+    ast.Mult: op.mul,
+    ast.Div: op.truediv,
+    ast.Pow: op.pow,
+    ast.USub: op.neg,
+    ast.UAdd: op.pos,
+}
+
+
+def _eval_ast_node(node: ast.AST, context: dict[str, Any]) -> Any:
+    """Valuta ricorsivamente un nodo AST in un ambiente di esecuzione sicuro."""
+    if isinstance(node, ast.Expression):
+        return _eval_ast_node(node.body, context)
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Name):
+        var_name = node.id.lower()
+        if var_name in context:
+            return context[var_name]
+        if var_name == "true":
+            return True
+        if var_name == "false":
+            return False
+        raise NameError(f"Variabile non definita nella formula: {node.id}")
+    if isinstance(node, ast.BinOp):
+        left = _eval_ast_node(node.left, context)
+        right = _eval_ast_node(node.right, context)
+        op_type = type(node.op)
+        if op_type in SAFE_OPERATORS:
+            return SAFE_OPERATORS[op_type](left, right)
+        raise ValueError(f"Operatore non consentito: {op_type}")
+    if isinstance(node, ast.UnaryOp):
+        operand = _eval_ast_node(node.operand, context)
+        op_type = type(node.op)
+        if op_type in SAFE_OPERATORS:
+            return SAFE_OPERATORS[op_type](operand)
+        raise ValueError(f"Operatore unario non consentito: {op_type}")
+    if isinstance(node, ast.IfExp):
+        test_val = _eval_ast_node(node.test, context)
+        if test_val:
+            return _eval_ast_node(node.body, context)
+        return _eval_ast_node(node.orelse, context)
+    raise ValueError(f"Espressione complessa non consentita: {type(node)}")
+
+
+def evaluate_formula(
+    formula: str | None, context: dict[str, Any], default: float = 0.0
+) -> float:
+    """Valuta in modo sicuro una formula aritmetica fornita in formato stringa.
+    
+    Permette l'uso di variabili come:
+    pun, ccl, pd, pd_forfettario, s1, s2, s3, uc3, uc6_qe, uc6_qp, asos, arim, dispbt, power_kw, accisa, iva.
+    """
+    if not formula or not formula.strip():
+        return default
+
+    try:
+        lower_context = {str(k).lower(): v for k, v in context.items()}
+        tree = ast.parse(formula.strip(), mode="eval")
+        result = _eval_ast_node(tree, lower_context)
+        return float(result)
+    except Exception as err:
+        _LOGGER.warning(
+            "Errore durante la valutazione della formula '%s' con variabili %s: %s",
+            formula,
+            context,
+            err,
+        )
+        return default
 
 
 def compute_easter(year: int) -> date:
@@ -103,7 +181,7 @@ def compute_prezzo_energia(
     include_losses: bool = True,
     decimals: int = 6,
 ) -> float:
-    """Calcola il prezzo unitario al kWh secondo la formula del fornitore:
+    """Calcola il prezzo unitario al kWh secondo la formula standard del fornitore:
     ((PUN + perdite + ccl + pd + pd_forfettario + s3 + uc3 + uc6 + asos + arim + accisa) * (1 + iva/100))
     """
     pdr = (pun * 0.10) if include_losses else 0.0
@@ -134,7 +212,7 @@ def compute_prezzo_fisso_giornaliero(
     iva_percent: float,
     decimals: int = 6,
 ) -> float:
-    """Calcola la quota fissa giornaliera:
+    """Calcola la quota fissa giornaliera secondo la formula standard:
     ((PCV + DispBT + QF + QP*kW + UC6_QP*kW) * (1 + iva/100)) / 365
     """
     costo_annuo = pcv + dispbt + qf_s1 + (qp_s2 * power_kw) + (uc6_qp * power_kw)

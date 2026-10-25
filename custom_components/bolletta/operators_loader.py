@@ -7,22 +7,28 @@ from pathlib import Path
 from typing import Any
 import xml.etree.ElementTree as ET
 
+try:
+    from .const import DEFAULT_FORMULA_ENERGIA, DEFAULT_FORMULA_QUOTA_FISSA
+except (ImportError, ValueError):
+    from const import DEFAULT_FORMULA_ENERGIA, DEFAULT_FORMULA_QUOTA_FISSA
+
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_OFFER_VALUES = {
     "ccl": 0.0150,
     "pcv": 90.00,
-    "dispbt": 1.107,
     "pd": 0.0018,
     "pd_forfettario": 0.0,
     "include_losses": True,
     "accisa": 0.0227,
     "iva": 10.0,
+    "formula_energia": DEFAULT_FORMULA_ENERGIA,
+    "formula_quota_fissa": DEFAULT_FORMULA_QUOTA_FISSA,
 }
 
 
 def _parse_xml_offer(file_path: Path) -> dict[str, Any]:
-    """Estrae i dati di un'offerta da un file XML."""
+    """Estrae i dati e le formule di calcolo di un'offerta da un file XML."""
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -49,43 +55,62 @@ def _parse_xml_offer(file_path: Path) -> dict[str, Any]:
     name = get_text("name", offer_id.replace("_", " ").title())
     desc = get_text("description", "")
 
-    return {
+    data: dict[str, Any] = {
         "id": offer_id,
         "name": name,
         "description": desc,
         "ccl": get_float("ccl", DEFAULT_OFFER_VALUES["ccl"]),
         "pcv": get_float("pcv", DEFAULT_OFFER_VALUES["pcv"]),
-        "dispbt": get_float("dispbt", DEFAULT_OFFER_VALUES["dispbt"]),
         "pd": get_float("pd", DEFAULT_OFFER_VALUES["pd"]),
         "pd_forfettario": get_float("pd_forfettario", DEFAULT_OFFER_VALUES["pd_forfettario"]),
         "include_losses": get_bool("include_losses", DEFAULT_OFFER_VALUES["include_losses"]),
         "accisa": get_float("accisa", DEFAULT_OFFER_VALUES["accisa"]),
         "iva": get_float("iva", DEFAULT_OFFER_VALUES["iva"]),
+        "formula_energia": get_text("formula_energia", DEFAULT_FORMULA_ENERGIA),
+        "formula_quota_fissa": get_text("formula_quota_fissa", DEFAULT_FORMULA_QUOTA_FISSA),
     }
+
+    # Memorizza eventuali altri tag personalizzati (es. parametri fissi)
+    for child in root:
+        if child.tag not in data and child.text:
+            text = child.text.strip()
+            try:
+                data[child.tag] = float(text)
+            except ValueError:
+                data[child.tag] = text
+
+    return data
 
 
 def _parse_json_offer(file_path: Path) -> dict[str, Any]:
-    """Estrae i dati di un'offerta da un file JSON."""
+    """Estrae i dati e le formule di calcolo di un'offerta da un file JSON."""
     with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+        raw_data = json.load(f)
 
-    offer_id = data.get("id", file_path.stem)
-    name = data.get("name", offer_id.replace("_", " ").title())
-    desc = data.get("description", "")
+    offer_id = raw_data.get("id", file_path.stem)
+    name = raw_data.get("name", offer_id.replace("_", " ").title())
+    desc = raw_data.get("description", "")
 
-    return {
-        "id": offer_id,
-        "name": name,
-        "description": desc,
-        "ccl": float(data.get("ccl", DEFAULT_OFFER_VALUES["ccl"])),
-        "pcv": float(data.get("pcv", DEFAULT_OFFER_VALUES["pcv"])),
-        "dispbt": float(data.get("dispbt", DEFAULT_OFFER_VALUES["dispbt"])),
-        "pd": float(data.get("pd", DEFAULT_OFFER_VALUES["pd"])),
-        "pd_forfettario": float(data.get("pd_forfettario", DEFAULT_OFFER_VALUES["pd_forfettario"])),
-        "include_losses": bool(data.get("include_losses", DEFAULT_OFFER_VALUES["include_losses"])),
-        "accisa": float(data.get("accisa", DEFAULT_OFFER_VALUES["accisa"])),
-        "iva": float(data.get("iva", DEFAULT_OFFER_VALUES["iva"])),
-    }
+    data: dict[str, Any] = dict(raw_data)
+    data["id"] = offer_id
+    data["name"] = name
+    data["description"] = desc
+
+    # Imposta valori base se non presenti
+    data.setdefault("ccl", DEFAULT_OFFER_VALUES["ccl"])
+    data.setdefault("pcv", DEFAULT_OFFER_VALUES["pcv"])
+    data.setdefault("pd", DEFAULT_OFFER_VALUES["pd"])
+    data.setdefault("pd_forfettario", DEFAULT_OFFER_VALUES["pd_forfettario"])
+    data.setdefault("include_losses", DEFAULT_OFFER_VALUES["include_losses"])
+    data.setdefault("accisa", DEFAULT_OFFER_VALUES["accisa"])
+    data.setdefault("iva", DEFAULT_OFFER_VALUES["iva"])
+    data.setdefault("formula_energia", DEFAULT_FORMULA_ENERGIA)
+    data.setdefault("formula_quota_fissa", DEFAULT_FORMULA_QUOTA_FISSA)
+
+    # Assicura che dispbt sia rimosso se erroneamente presente nei parametri offerta
+    data.pop("dispbt", None)
+
+    return data
 
 
 def load_operators_and_offers(base_dir: Path | None = None) -> dict[str, dict[str, Any]]:

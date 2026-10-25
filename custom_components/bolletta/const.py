@@ -16,12 +16,12 @@ OPERATORS = {
 }
 
 # Parametri contrattuali predefiniti per operatore
+# Parametri contrattuali predefiniti per operatore
 OPERATOR_PRESETS = {
     OPERATOR_ENGIE: {
         "name": "Engie",
         "ccl": 0.0152,           # Contributo al consumo / spread (€/kWh)
         "pcv": 69.88,            # Commercializzazione venditore (€/anno)
-        "dispbt": -10.77,        # DispBT (€/anno)
         "pd": 0.0018,            # Dispacciamento (€/kWh)
         "pd_forfettario": 0.0000,# Dispacciamento forfettario (€/kWh)
         "include_losses": True,  # Perdite di rete 10% su PUN
@@ -32,7 +32,6 @@ OPERATOR_PRESETS = {
         "name": "Octopus Energy",
         "ccl": 0.01628,          # Spread alfa (€/kWh)
         "pcv": 96.00,            # Commercializzazione fissa (8 €/mese) (€/anno)
-        "dispbt": -10.77,
         "pd": 0.0018,
         "pd_forfettario": 0.0000,
         "include_losses": True,
@@ -43,7 +42,6 @@ OPERATOR_PRESETS = {
         "name": "Dolomiti Energia",
         "ccl": 0.0175,           # Spread corrispettivo luce (€/kWh)
         "pcv": 114.00,           # Commercializzazione venditore (9.5 €/mese) (€/anno)
-        "dispbt": -10.77,
         "pd": 0.0018,
         "pd_forfettario": 0.0000,
         "include_losses": True,
@@ -54,7 +52,6 @@ OPERATOR_PRESETS = {
         "name": "Personalizzato",
         "ccl": 0.0150,
         "pcv": 90.00,
-        "dispbt": -10.77,
         "pd": 0.0018,
         "pd_forfettario": 0.0000,
         "include_losses": True,
@@ -78,12 +75,23 @@ CONF_PUN_F3 = "pun_f3"
 # Parametri contrattuali
 CONF_CCL = "ccl"
 CONF_PCV = "pcv"
-CONF_DISPBT = "dispbt"
 CONF_PD = "pd"
 CONF_PD_FORFETTARIO = "pd_forfettario"
 CONF_INCLUDE_LOSSES = "include_losses"
 CONF_ACCISA = "accisa"
 CONF_IVA = "iva"
+
+# Formule di calcolo personalizzabili
+CONF_FORMULA_ENERGIA = "formula_energia"
+CONF_FORMULA_QUOTA_FISSA = "formula_quota_fissa"
+
+DEFAULT_FORMULA_ENERGIA = (
+    "((pun * (1.10 if include_losses else 1.0) + ccl + pd + pd_forfettario "
+    "+ s3 + uc3 + uc6_qe + asos + arim + accisa) * (1 + iva / 100))"
+)
+DEFAULT_FORMULA_QUOTA_FISSA = (
+    "(((pcv + dispbt + s1 + (s2 + uc6_qp) * power_kw) * (1 + iva / 100)) / 365)"
+)
 
 # Sensori ARERA (opzionali o auto-rilevati)
 CONF_ARERA_S1 = "arera_s1"

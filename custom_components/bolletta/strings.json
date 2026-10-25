@@ -34,7 +34,6 @@
         "data": {
           "ccl": "Consumption Fee / Spread (€/kWh)",
           "pcv": "Retail Commercialization Fee PCV (€/year)",
-          "dispbt": "Dispatch Component DispBT (€/year)",
           "pd": "Dispatching PD (€/kWh)",
           "pd_forfettario": "Flat Dispatching (€/kWh)",
           "include_losses": "Apply Network Losses (+10% on PUN)",
@@ -75,7 +74,6 @@
           "power_kw": "Meter Contracted Power (kW)",
           "ccl": "Consumption Fee / Spread (€/kWh)",
           "pcv": "Retail Commercialization Fee PCV (€/year)",
-          "dispbt": "DispBT (€/year)",
           "pd": "Dispatching PD (€/kWh)",
           "pd_forfettario": "Flat Dispatching (€/kWh)",
           "include_losses": "Apply Network Losses (+10% on PUN)",

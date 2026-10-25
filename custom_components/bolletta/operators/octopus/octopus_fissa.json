@@ -2,12 +2,13 @@
   "id": "octopus_fissa",
   "name": "Octopus Fissa 12M",
   "description": "Tariffa con prezzo fisso della materia prima per 12 mesi",
-  "ccl": 0.025,
+  "prezzo_fisso_kwh": 0.125,
   "pcv": 108.0,
-  "dispbt": 1.107,
   "pd": 0.0018,
   "pd_forfettario": 0.0,
-  "include_losses": true,
+  "include_losses": false,
   "accisa": 0.0227,
-  "iva": 10.0
+  "iva": 10.0,
+  "formula_energia": "((prezzo_fisso_kwh + pd + pd_forfettario + s3 + uc3 + uc6_qe + asos + arim + accisa) * (1 + iva / 100))",
+  "formula_quota_fissa": "(((pcv + dispbt + s1 + (s2 + uc6_qp) * power_kw) * (1 + iva / 100)) / 365)"
 }

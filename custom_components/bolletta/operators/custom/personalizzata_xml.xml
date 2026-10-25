@@ -2,13 +2,14 @@
 <offer>
     <id>personalizzata_xml</id>
     <name>Offerta Personalizzata (XML)</name>
-    <description>Esempio di offerta caricata da file XML</description>
+    <description>Esempio di offerta caricata da file XML con formule di calcolo</description>
     <ccl>0.0180</ccl>
     <pcv>96.00</pcv>
-    <dispbt>1.107</dispbt>
     <pd>0.0018</pd>
     <pd_forfettario>0.0</pd_forfettario>
     <include_losses>true</include_losses>
     <accisa>0.0227</accisa>
     <iva>10.0</iva>
+    <formula_energia>((pun * (1.10 if include_losses else 1.0) + ccl + pd + pd_forfettario + s3 + uc3 + uc6_qe + asos + arim + accisa) * (1 + iva / 100))</formula_energia>
+    <formula_quota_fissa>(((pcv + dispbt + s1 + (s2 + uc6_qp) * power_kw) * (1 + iva / 100)) / 365)</formula_quota_fissa>
 </offer>

@@ -34,7 +34,6 @@
         "data": {
           "ccl": "Contributo al Consumo / Spread (€/kWh)",
           "pcv": "Commercializzazione Vendita PCV (€/anno)",
-          "dispbt": "Componente di Dispacciamento DispBT (€/anno)",
           "pd": "Dispacciamento PD (€/kWh)",
           "pd_forfettario": "Dispacciamento Forfettario (€/kWh)",
           "include_losses": "Applica Perdite di Rete (+10% su PUN)",
@@ -75,7 +74,6 @@
           "power_kw": "Potenza Impegnata Contatore (kW)",
           "ccl": "Contributo al Consumo / Spread (€/kWh)",
           "pcv": "Commercializzazione Vendita PCV (€/anno)",
-          "dispbt": "DispBT (€/anno)",
           "pd": "Dispacciamento PD (€/kWh)",
           "pd_forfettario": "Dispacciamento Forfettario (€/kWh)",
           "include_losses": "Applica Perdite di Rete (+10% su PUN)",

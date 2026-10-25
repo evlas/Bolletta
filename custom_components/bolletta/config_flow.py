@@ -34,7 +34,8 @@ from .const import (
     CONF_ARERA_UC6_QE,
     CONF_ARERA_UC6_QP,
     CONF_CCL,
-    CONF_DISPBT,
+    CONF_FORMULA_ENERGIA,
+    CONF_FORMULA_QUOTA_FISSA,
     CONF_INCLUDE_LOSSES,
     CONF_IVA,
     CONF_OFFER,
@@ -48,6 +49,8 @@ from .const import (
     CONF_PUN_F2,
     CONF_PUN_F3,
     CONF_USE_MULTIORARIO,
+    DEFAULT_FORMULA_ENERGIA,
+    DEFAULT_FORMULA_QUOTA_FISSA,
     DEFAULT_POWER_KW,
     DOMAIN,
     FALLBACK_ARERA,
@@ -147,20 +150,11 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             chosen_offer_id = user_input.get(CONF_OFFER, default_offer)
             self._user_data[CONF_OFFER] = chosen_offer_id
 
-            # Carica i parametri dell'offerta selezionata
+            # Carica tutti i parametri e le formule dell'offerta selezionata (escludendo dispbt che è fornito da ARERA)
             chosen_offer = offers.get(chosen_offer_id, {})
-            for key in (
-                CONF_CCL,
-                CONF_PCV,
-                CONF_DISPBT,
-                CONF_PD,
-                CONF_PD_FORFETTARIO,
-                CONF_INCLUDE_LOSSES,
-                CONF_ACCISA,
-                CONF_IVA,
-            ):
-                if key in chosen_offer:
-                    self._user_data[key] = chosen_offer[key]
+            for key, val in chosen_offer.items():
+                if key != "dispbt":
+                    self._user_data[key] = val
 
             return await self.async_step_pun()
 
@@ -250,7 +244,6 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         ccl_val = float(self._user_data.get(CONF_CCL, 0.0152))
         pcv_val = float(self._user_data.get(CONF_PCV, 69.88))
-        dispbt_val = float(self._user_data.get(CONF_DISPBT, FALLBACK_ARERA["dispbt"]))
         pd_val = float(self._user_data.get(CONF_PD, 0.0018))
         pd_forfettario_val = float(self._user_data.get(CONF_PD_FORFETTARIO, 0.0))
         include_losses_val = bool(self._user_data.get(CONF_INCLUDE_LOSSES, True))
@@ -276,17 +269,6 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     NumberSelectorConfig(
                         min=0.0,
                         max=1000.0,
-                        step="any",
-                        unit_of_measurement="€/anno",
-                        mode=NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Required(
-                    CONF_DISPBT, default=dispbt_val
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=-200.0,
-                        max=200.0,
                         step="any",
                         unit_of_measurement="€/anno",
                         mode=NumberSelectorMode.BOX,
@@ -512,18 +494,6 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
                     NumberSelectorConfig(
                         min=0.0,
                         max=1000.0,
-                        step="any",
-                        unit_of_measurement="€/anno",
-                        mode=NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Required(
-                    CONF_DISPBT,
-                    default=float(entry_data.get(CONF_DISPBT, -10.77)),
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=-200.0,
-                        max=200.0,
                         step="any",
                         unit_of_measurement="€/anno",
                         mode=NumberSelectorMode.BOX,

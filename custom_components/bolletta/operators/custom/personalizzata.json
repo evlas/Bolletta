@@ -1,13 +1,14 @@
 {
   "id": "personalizzata",
   "name": "Offerta Personalizzata (JSON)",
-  "description": "Configurazione libera con parametri contrattuali definiti dall'utente",
+  "description": "Configurazione libera con parametri contrattuali e formule personalizzabili",
   "ccl": 0.015,
   "pcv": 90.0,
-  "dispbt": 1.107,
   "pd": 0.0018,
   "pd_forfettario": 0.0,
   "include_losses": true,
   "accisa": 0.0227,
-  "iva": 10.0
+  "iva": 10.0,
+  "formula_energia": "((pun * (1.10 if include_losses else 1.0) + ccl + pd + pd_forfettario + s3 + uc3 + uc6_qe + asos + arim + accisa) * (1 + iva / 100))",
+  "formula_quota_fissa": "(((pcv + dispbt + s1 + (s2 + uc6_qp) * power_kw) * (1 + iva / 100)) / 365)"
 }
