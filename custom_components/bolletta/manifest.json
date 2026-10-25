@@ -1,7 +1,9 @@
 {
   "domain": "bolletta",
   "name": "Bolletta Elettrica",
-  "codeowners": ["@evlas"],
+  "codeowners": [
+    "@evlas"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/evlas/Bolletta",
   "integration_type": "hub",

@@ -51,7 +51,7 @@ Easily links with existing **PUN** (Single National Price) sensors and regulated
 1. Open **HACS** in Home Assistant.
 2. Go to **Integrations** -> Click the three dots menu in the top right corner -> **Custom repositories**.
 3. Paste `https://github.com/evlas/Bolletta.git`, select the category **Integration**, and click **Add**.
-4. Search for **Bolletta Elettrica** and click **Download**.
+4. Search for **Bolletta Energia Elettrica** and click **Download**.
 5. Restart Home Assistant.
 
 ### Method 2: Manual Installation
@@ -69,7 +69,7 @@ Easily links with existing **PUN** (Single National Price) sensors and regulated
 
 1. In the Home Assistant WebUI, navigate to **Settings** -> **Devices & Services**.
 2. Click **Add Integration** in the bottom right corner.
-3. Search for **Bolletta Elettrica**.
+3. Search for **Bolletta Energia Elettrica**.
 4. Follow the setup wizard:
    - **Step 1: General**: Name your contract instance (e.g., *Bolletta Engie*), choose your supplier from the list loaded from `operators/`, select contracted power (e.g., `3.0 kW`, `4.5 kW`, `6.0 kW`), and enable time-of-use tariffs.
    - **Step 2: Commercial Offer**: Pick the specific commercial plan (e.g., *Energia Chiara*, *Octopus Flex*, *Fixed Price*, etc.) dynamically loaded from JSON/XML files.

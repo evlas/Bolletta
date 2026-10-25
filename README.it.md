@@ -1,4 +1,4 @@
-# Bolletta Elettrica - Integrazione Home Assistant
+# Bolletta Energia Elettrica - Integrazione Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
 [![GitHub Release](https://img.shields.io/github/v/release/evlas/Bolletta?color=blue&style=flat-square)](https://github.com/evlas/Bolletta/releases)
@@ -9,7 +9,11 @@
 
 🌐 *[English version](README.md) | Versione in italiano*
 
-Integrazione professionale per **Home Assistant** per calcolare in modo trasparente e in tempo reale il costo dell'energia elettrica e le quote fisse della bolletta per i contratti di fornitura domestica in Italia.
+Integrazione professionale per **Home Assistant** per calcolare in modo trasparente e in tempo reale il costo e le quote fisse della **bolletta dell'energia elettrica** (luce) per i contratti di fornitura domestica in Italia.
+
+> [!IMPORTANT]
+> **Ambito di Applicazione: Bolletta dell'Energia Elettrica**
+> Questa integrazione è dedicata esclusivamente alla **Bolletta dell'Energia Elettrica (Luce)** per utenze domestiche in Bassa Tensione (BT). Calcola in tempo reale il costo finito dell'energia elettrica al kWh, la quota fissa giornaliera (€/giorno) e la stima mensile, combinando i prezzi PUN, le condizioni economiche del fornitore di energia elettrica e le componenti regolate ARERA. Non gestisce bollette del gas naturale o del servizio idrico.
 
 Si collega facilmente ai sensori **PUN** (Prezzo Unico Nazionale) esistenti e alle componenti tariffarie regolate **ARERA**, supportando sia tariffe monorarie (F0) che multiorarie a fasce (F1, F2, F3).
 
@@ -51,7 +55,7 @@ Si collega facilmente ai sensori **PUN** (Prezzo Unico Nazionale) esistenti e al
 1. Apri **HACS** in Home Assistant.
 2. Vai su **Integrazioni** -> Menu tre puntini in alto a destra -> **Repository personalizzati**.
 3. Incolla `https://github.com/evlas/Bolletta.git`, seleziona la categoria **Integrazione** e clicca **Aggiungi**.
-4. Cerca **Bolletta Elettrica** e clicca su **Scarica**.
+4. Cerca **Bolletta Energia Elettrica** e clicca su **Scarica**.
 5. Riavvia Home Assistant.
 
 ### Metodo 2: Installazione Manuale
@@ -69,7 +73,7 @@ Si collega facilmente ai sensori **PUN** (Prezzo Unico Nazionale) esistenti e al
 
 1. Nella WebUI di Home Assistant, vai su **Impostazioni** -> **Dispositivi e Servizi**.
 2. Clicca su **Aggiungi Integrazione** in basso a destra.
-3. Cerca **Bolletta Elettrica**.
+3. Cerca **Bolletta Energia Elettrica**.
 4. Segui la procedura guidata a passi:
    - **Passo 1: Generale**: Assegna un nome all'istanza (es. *Bolletta Engie*), scegli l'operatore tra quelli disponibili nella cartella `operators/`, seleziona la potenza impegnata (es. `3.0 kW`, `4.5 kW`, `6.0 kW`) e abilita la tariffa multioraria.
    - **Passo 2: Offerta Commerciale**: Seleziona l'offerta specifica del venditore (es. *Energia Chiara*, *Octopus Flex*, *Prezzo Fisso*, ecc.). I parametri e le formule matematiche vengono precaricati automaticamente dal file corrispondente.
