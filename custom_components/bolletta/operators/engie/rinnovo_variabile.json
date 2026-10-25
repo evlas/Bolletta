@@ -1,0 +1,14 @@
+{
+  "id": "rinnovo_variabile",
+  "name": "ENGIE Rinnovo Variabile",
+  "description": "Offerta a prezzo variabile indicizzato al PUN con contributo luce, dispacciamento e sbilanciamento forfettario",
+  "ccl": 0.018,
+  "pcv": 96.0,
+  "pd": 0.02556,
+  "pd_forfettario": 0.002,
+  "include_losses": true,
+  "accisa": 0.0227,
+  "iva": 10.0,
+  "formula_energia": "(((pun + ccl) * (1.10 if include_losses else 1.0) + pd + pd_forfettario + s3 + uc3 + uc6_qe + asos + arim + accisa) * (1 + iva / 100))",
+  "formula_quota_fissa": "(((pcv + dispbt + s1 + (s2 + uc6_qp) * power_kw) * (1 + iva / 100)) / 365)"
+}
