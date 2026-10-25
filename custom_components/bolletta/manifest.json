@@ -1,0 +1,11 @@
+{
+  "domain": "bolletta",
+  "name": "Bolletta Elettrica",
+  "codeowners": ["@evlas"],
+  "config_flow": true,
+  "documentation": "https://github.com/evlas/Bolletta",
+  "integration_type": "hub",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/evlas/Bolletta/issues",
+  "version": "1.0.0"
+}

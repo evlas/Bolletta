@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configura Fornitore Luce",
+        "description": "Seleziona l'operatore energetico, il nome dell'istanza e la potenza impegnata del contatore.",
+        "data": {
+          "name": "Nome Contratto / Istanza",
+          "operator": "Operatore / Fornitore",
+          "power_kw": "Potenza Impegnata Contatore (kW)",
+          "use_multiorario": "Tariffa Multioraria (F1, F2, F3)"
+        }
+      },
+      "pun": {
+        "title": "Selezione Sensori PUN",
+        "description": "Seleziona i sensori del Prezzo Unico Nazionale (PUN) già presenti in Home Assistant (ad es. da integrazione PUN Sensor).",
+        "data": {
+          "pun_f0": "Sensore PUN Monorario (F0)",
+          "pun_f1": "Sensore PUN Fascia F1",
+          "pun_f2": "Sensore PUN Fascia F2",
+          "pun_f3": "Sensore PUN Fascia F3"
+        }
+      },
+      "operator_params": {
+        "title": "Parametri Contrattuali",
+        "description": "I valori sono stati precompilati in base all'operatore selezionato. Puoi verificarli e modificarli se la tua offerta ha condizioni diverse.",
+        "data": {
+          "ccl": "Contributo al Consumo / Spread (€/kWh)",
+          "pcv": "Commercializzazione Vendita PCV (€/anno)",
+          "dispbt": "Componente di Dispacciamento DispBT (€/anno)",
+          "pd": "Dispacciamento PD (€/kWh)",
+          "pd_forfettario": "Dispacciamento Forfettario (€/kWh)",
+          "include_losses": "Applica Perdite di Rete (+10% su PUN)",
+          "accisa": "Accisa erariale (€/kWh)",
+          "iva": "Aliquota IVA (%)"
+        }
+      },
+      "arera": {
+        "title": "Collegamento Sensori ARERA (Opzionale)",
+        "description": "Se hai installato l'integrazione ARERA, i sensori verranno rilevati automaticamente. Se lasci i campi vuoti, verranno utilizzati i valori ufficiali ARERA predefiniti.",
+        "data": {
+          "arera_s1": "Sensore Quota Fissa Trasporto (s1)",
+          "arera_s2": "Sensore Quota Potenza Trasporto (s2)",
+          "arera_s3": "Sensore Quota Energia Trasporto (s3)",
+          "arera_uc3": "Sensore Perequazione UC3",
+          "arera_uc6_qe": "Sensore UC6 Quota Energia",
+          "arera_uc6_qp": "Sensore UC6 Quota Potenza",
+          "arera_asos": "Sensore Asos (Rinnovabili)",
+          "arera_arim": "Sensore Arim (Rimanenti Oneri)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Contratto Bolletta",
+        "description": "Modifica i parametri contrattuali, la potenza impegnata o i sensori PUN collegati.",
+        "data": {
+          "power_kw": "Potenza Impegnata Contatore (kW)",
+          "ccl": "Contributo al Consumo / Spread (€/kWh)",
+          "pcv": "Commercializzazione Vendita PCV (€/anno)",
+          "dispbt": "DispBT (€/anno)",
+          "pd": "Dispacciamento PD (€/kWh)",
+          "pd_forfettario": "Dispacciamento Forfettario (€/kWh)",
+          "include_losses": "Applica Perdite di Rete (+10% su PUN)",
+          "accisa": "Accisa erariale (€/kWh)",
+          "iva": "Aliquota IVA (%)",
+          "pun_f0": "Sensore PUN Monorario (F0)",
+          "pun_f1": "Sensore PUN Fascia F1",
+          "pun_f2": "Sensore PUN Fascia F2",
+          "pun_f3": "Sensore PUN Fascia F3"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,389 @@
+homeassistant:
+  customize:
+    package.node_anchors:
+      customize: &customize
+        package: 'Bolletta Engie'
+        version: '0.3'
+        author: 'Vito Ammirata'
+        reference: 'www.hassiohelp.eu'
+
+################################################################
+#                  PACKAGE V0.3                                #
+# dipende da controllo carichi                                 #
+################################################################
+
+input_select:
+  selettore_kw_contatore:
+    name: Potenza Impegnata
+    options:
+      - 3 kW
+      - 4,5 kW
+      - 6 kW
+      - 10 kW
+    icon: mdi:flash
+
+input_number:
+#  engie_cef_f0:
+#    name: Corrispettivo Energia Fisso F0 (CEF)
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+#  engie_cef_f1:
+#    name: Corrispettivo Energia Fisso F1 (CEF)
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+#  engie_cef_f2:
+#    name: Corrispettivo Energia Fisso F2 (CEF)
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+#  engie_cef_f3:
+#    name: Corrispettivo Energia Fisso F3 (CEF)
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+  engie_ccl:
+    name: Contributo al consumo luce
+    mode: box
+    min: 0
+    max: 100
+    step: 0.000001
+    unit_of_measurement: "€/kWh"
+  engie_pd:
+    name: Dispacciamento
+    mode: box
+    min: 0
+    max: 100
+    step: 0.000001
+    unit_of_measurement: "€/kWh"
+  engie_pd_forfettario:
+    name: Dispacciamento Forfettario
+    mode: box
+    min: 0
+    max: 100
+    step: 0.000001
+    unit_of_measurement: "€/kWh"
+#  engie_cs:
+#    name: Corrispettivo di Sbilanciamento (CS)
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+  engie_pcv:
+    name: Commercializzazione (PCV)
+    mode: box
+    min: 0
+    max: 200
+    step: 0.000001
+    unit_of_measurement: "€/anno"
+  engie_dispbt:
+    name: Componente di Dispacciamento (DispBT)
+    mode: box
+    min: -100
+    max: 100
+    step: 0.000001
+    unit_of_measurement: "€/anno"
+
+#  engie_quota_fissa:
+#    name: Quota Fissa
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/anno"
+#  engie_quota_potenza:
+#    name: Quota Potenza
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kW/anno"
+#  engie_quota_energia:
+#    name: Quota Energia
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+#  engie_uc3:
+#    name: UC3
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+#  engie_uc6:
+#    name: UC6
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+
+#  engie_asos:
+#    name: Asos
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+#  engie_arim:
+#    name: Arim
+#    mode: box
+#    min: 0
+#    max: 100
+#    step: 0.000001
+#    unit_of_measurement: "€/kWh"
+
+  engie_accisa:
+    name: Accisa
+    mode: box
+    min: 0
+    max: 100
+    step: 0.000001
+    unit_of_measurement: "€/kWh"
+  engie_iva:
+    name: IVA
+    mode: box
+    min: 0
+    max: 100
+    step: 0.000001
+    unit_of_measurement: "%"
+
+sensor:
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera Ultimo Aggiornamento
+    value_template: "{{ value_json.today }}"
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera CDISPD
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.cdispd }}"
+    unique_id: cdispd
+
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera CSED
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.csed }}"
+    unique_id: csed
+
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera CPSTGD
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.cpstgd }}"
+    unique_id: cpstgd
+
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera Parametro lamda
+    unit_of_measurement: "€/anno"
+    value_template: "{{ value_json.parametrolamda }}"
+    unique_id: parametro_lamda
+    
+#  - platform: rest
+#    resource: http://192.168.70.50/arera/arera.json
+#    name: Arera DispBT
+#    unit_of_measurement: "€/anno"
+#    value_template: "{{ value_json.dispbt }}"
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera Quota Fissa
+    unit_of_measurement: "€/anno"
+    value_template: "{{ value_json.s1 }}"
+    unique_id: quotafissas1
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera Quota Potenza
+    unit_of_measurement: "€/kW/anno"
+    value_template: "{{ value_json.s2 }}"
+    unique_id: quotafissas2
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera Quota Energia
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.s3 }}"
+    unique_id: quotafissas3
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera UC3
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.uc3 }}"
+    unique_id: quotafissauc3
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera UC6 QE
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.uc6qe }}"
+    unique_id: quotafissauc6qe
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera UC6 QP
+    unit_of_measurement: "€/kW/anno"
+    value_template: "{{ value_json.uc6qp }}"
+    unique_id: quotafissauc6qp
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera Asos
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.asos }}"
+    unique_id: quotafissaasos
+    
+  - platform: rest
+    resource: http://192.168.70.50/arera/arera.json
+    name: Arera Arim
+    unit_of_measurement: "€/kWh"
+    value_template: "{{ value_json.arim }}"
+    unique_id: quotafissaarim
+    
+template:
+  - sensor:
+      - name: "Engie Prezzo Unitario F0"
+        unit_of_measurement: "€/kWh"
+        state_class: measurement
+        state: >
+          {% set cef = states('sensor.pun_mono_orario') | float(0) %}
+          {% set pdr = states('sensor.pun_mono_orario') | float(0) * 0.1 %}
+          {% set ccl = states('input_number.engie_ccl') | float(0) %}
+      
+          {% set pd = states('input_number.engie_pd') | float(0) %}
+          {% set pdf = states('input_number.engie_pd_forfettario') | float(0) %}
+
+          {% set s3  = states('sensor.arera_quota_energia') | float(0) %}
+
+          {% set uc3 = states('sensor.arera_uc3') | float(0) %}
+          {% set uc6  = states('sensor.arera_uc6_qe') | float(0) %}
+
+          {% set asos = states('sensor.arera_asos') | float(0) %}
+          {% set arim  = states('sensor.arera_arim') | float(0) %}
+
+          {% set accisa = states('input_number.engie_accisa') | float(0) %}
+          {% set iva  = states('input_number.engie_iva') | float(0) %}
+
+          {{ ((cef + ccl + pd + pdr + pdf + s3 + uc3 + uc6 + asos + arim + accisa)*(1 + iva/100.0)) | round(8, default=0) }}
+  
+      - name: "Engie Prezzo Unitario F1"
+        unit_of_measurement: "€/kWh"
+        state_class: measurement
+        state: >
+          {% set cef = states('sensor.pun_fascia_f1') | float(0) %}
+          {% set pdr = states('sensor.pun_fascia_f1') | float(0) * 0.1 %}
+          {% set ccl = states('input_number.engie_ccl') | float(0) %}
+
+          {% set pd = states('input_number.engie_pd') | float(0) %}
+          {% set pdf = states('input_number.engie_pd_forfettario') | float(0) %}
+
+          {% set s3  = states('sensor.arera_quota_energia') | float(0) %}
+
+          {% set uc3 = states('sensor.arera_uc3') | float(0) %}
+          {% set uc6  = states('sensor.arera_uc6_qe') | float(0) %}
+
+          {% set asos = states('sensor.arera_asos') | float(0) %}
+          {% set arim  = states('sensor.arera_arim') | float(0) %}
+
+          {% set accisa = states('input_number.engie_accisa') | float(0) %}
+          {% set iva  = states('input_number.engie_iva') | float(0) %}
+
+          {{ ((cef + ccl + pd + pdr + pdf + s3 + uc3 + uc6 + asos + arim + accisa)*(1 + iva/100.0)) | round(8, default=0) }}
+
+      - name: "Engie Prezzo Unitario F2"
+        unit_of_measurement: "€/kWh"
+        state_class: measurement
+        state: >
+          {% set cef = states('sensor.pun_fascia_f2') | float(0) %}
+          {% set pdr = states('sensor.pun_fascia_f2') | float(0) * 0.1 %}
+          {% set ccl = states('input_number.engie_ccl') | float(0) %}
+
+          {% set pd = states('input_number.engie_pd') | float(0) %}
+          {% set pdf = states('input_number.engie_pd_forfettario') | float(0) %}
+
+          {% set s3  = states('sensor.arera_quota_energia') | float(0) %}
+
+          {% set uc3 = states('sensor.arera_uc3') | float(0) %}
+          {% set uc6  = states('sensor.arera_uc6_qe') | float(0) %}
+
+          {% set asos = states('sensor.arera_asos') | float(0) %}
+          {% set arim  = states('sensor.arera_arim') | float(0) %}
+
+          {% set accisa = states('input_number.engie_accisa') | float(0) %}
+          {% set iva  = states('input_number.engie_iva') | float(0) %}
+
+          {{ ((cef + ccl + pd + pdr + pdf + s3 + uc3 + uc6 + asos + arim + accisa)*(1 + iva/100.0)) | round(8, default=0) }}
+
+      - name: "Engie Prezzo Unitario F3"
+        unit_of_measurement: "€/kWh"
+        state_class: measurement
+        state: >
+          {% set cef = states('sensor.pun_fascia_f3') | float(0) %}
+          {% set pdr = states('sensor.pun_fascia_f3') | float(0) * 0.1 %}
+          {% set ccl = states('input_number.engie_ccl') | float(0) %}
+
+          {% set pd = states('input_number.engie_pd') | float(0) %}
+          {% set pdf = states('input_number.engie_pd_forfettario') | float(0) %}
+
+          {% set s3  = states('sensor.arera_quota_energia') | float(0) %}
+
+          {% set uc3 = states('sensor.arera_uc3') | float(0) %}
+          {% set uc6  = states('sensor.arera_uc6_qe') | float(0) %}
+
+          {% set asos = states('sensor.arera_asos') | float(0) %}
+          {% set arim  = states('sensor.arera_arim') | float(0) %}
+
+          {% set accisa = states('input_number.engie_accisa') | float(0) %}
+          {% set iva  = states('input_number.engie_iva') | float(0) %}
+
+          {{ ((cef + ccl + pd + pdr + pdf + s3 + uc3 + uc6 + asos + arim + accisa)*(1 + iva/100.0)) | round(8, default=0) }}
+
+      - name: "Engie Prezzo Fisso Giornaliero"
+        unit_of_measurement: "€/giorno"
+        state_class: measurement
+        state: >
+          {% set pcv = states('input_number.engie_pcv') | float(0) %}
+          {% set dispbt  = states('input_number.engie_dispbt') | float(0) %}
+          
+          {% set qf = states('sensor.arera_quota_fissa') | float(0) %}
+          {% set qp = states('sensor.arera_quota_potenza') | float(0) %}
+
+          {% set uc6 = states('sensor.arera_uc6_qp') | float(0) %}
+ 
+          {% if is_state("input_select.selettore_kw_contatore", "3 kW") %}
+                {% set pi = 3.0 %}
+          {%-elif is_state("input_select.selettore_kw_contatore", "4,5 kW") %}
+                {% set pi = 4.5 %}
+          {%-elif is_state("input_select.selettore_kw_contatore", "6 kW") %}
+                {% set pi = 6.0 %}
+          {%-elif is_state("input_select.selettore_kw_contatore", "10 kW") %}
+                {% set pi = 10.0 %}
+          {% endif %}
+ 
+          {% set iva  = states('input_number.engie_iva') | float(0) %}
+
+          {{ ((pcv + dispbt + qf + qp*pi + uc6*pi)*(1 + iva/100.0)/365.0) | round(8, default=0) }}
+
+
+
+
+
+
+
+

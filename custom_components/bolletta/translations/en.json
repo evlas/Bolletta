@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Electricity Supplier",
+        "description": "Select the energy operator, contract name and meter power.",
+        "data": {
+          "name": "Contract / Instance Name",
+          "operator": "Energy Operator / Supplier",
+          "power_kw": "Meter Contracted Power (kW)",
+          "use_multiorario": "Time-of-Use Tariff (F1, F2, F3)"
+        }
+      },
+      "pun": {
+        "title": "Select PUN Sensors",
+        "description": "Select National Single Price (PUN) sensors already available in Home Assistant.",
+        "data": {
+          "pun_f0": "Single-rate PUN Sensor (F0)",
+          "pun_f1": "Band F1 PUN Sensor",
+          "pun_f2": "Band F2 PUN Sensor",
+          "pun_f3": "Band F3 PUN Sensor"
+        }
+      },
+      "operator_params": {
+        "title": "Contract Parameters",
+        "description": "Parameters are prefilled with presets for the selected supplier. Adjust if your contract differs.",
+        "data": {
+          "ccl": "Consumption Fee / Spread (€/kWh)",
+          "pcv": "Retail Commercialization Fee PCV (€/year)",
+          "dispbt": "Dispatch Component DispBT (€/year)",
+          "pd": "Dispatching PD (€/kWh)",
+          "pd_forfettario": "Flat Dispatching (€/kWh)",
+          "include_losses": "Apply Network Losses (+10% on PUN)",
+          "accisa": "Excise Duty (€/kWh)",
+          "iva": "VAT Rate (%)"
+        }
+      },
+      "arera": {
+        "title": "Link ARERA Sensors (Optional)",
+        "description": "If the ARERA integration is installed, sensors will be auto-detected. If left blank, official ARERA default values will be used.",
+        "data": {
+          "arera_s1": "Fixed Transport Sensor (s1)",
+          "arera_s2": "Power Transport Sensor (s2)",
+          "arera_s3": "Energy Transport Sensor (s3)",
+          "arera_uc3": "Equalization UC3 Sensor",
+          "arera_uc6_qe": "UC6 Energy Rate Sensor",
+          "arera_uc6_qp": "UC6 Power Rate Sensor",
+          "arera_asos": "Asos Renewable Sensor",
+          "arera_arim": "Arim Other Charges Sensor"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Electricity Contract Options",
+        "description": "Edit contract parameters, power, or linked PUN sensors.",
+        "data": {
+          "power_kw": "Meter Contracted Power (kW)",
+          "ccl": "Consumption Fee / Spread (€/kWh)",
+          "pcv": "Retail Commercialization Fee PCV (€/year)",
+          "dispbt": "DispBT (€/year)",
+          "pd": "Dispatching PD (€/kWh)",
+          "pd_forfettario": "Flat Dispatching (€/kWh)",
+          "include_losses": "Apply Network Losses (+10% on PUN)",
+          "accisa": "Excise Duty (€/kWh)",
+          "iva": "VAT Rate (%)",
+          "pun_f0": "Single-rate PUN Sensor (F0)",
+          "pun_f1": "Band F1 PUN Sensor",
+          "pun_f2": "Band F2 PUN Sensor",
+          "pun_f3": "Band F3 PUN Sensor"
+        }
+      }
+    }
+  }
+}
