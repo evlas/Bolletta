@@ -285,22 +285,78 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Rileva automaticamente entità ARERA standard se presenti nel registro
         schema_dict: dict[Any, Any] = {}
-        arera_pairs = [
-            (CONF_ARERA_S1, "sensor.arera_quota_fissa"),
-            (CONF_ARERA_S2, "sensor.arera_quota_potenza"),
-            (CONF_ARERA_S3, "sensor.arera_quota_energia"),
-            (CONF_ARERA_UC3, "sensor.arera_uc3"),
-            (CONF_ARERA_UC6_QE, "sensor.arera_uc6_qe"),
-            (CONF_ARERA_UC6_QP, "sensor.arera_uc6_qp"),
-            (CONF_ARERA_ASOS, "sensor.arera_asos"),
-            (CONF_ARERA_ARIM, "sensor.arera_arim"),
+        arera_candidates = [
+            (
+                CONF_ARERA_S1,
+                [
+                    "sensor.arera_quota_fissa",
+                    "sensor.arera_tariffe_regolate_s1",
+                    "sensor.arera_s1",
+                ],
+            ),
+            (
+                CONF_ARERA_S2,
+                [
+                    "sensor.arera_quota_potenza",
+                    "sensor.arera_tariffe_regolate_s2",
+                    "sensor.arera_s2",
+                ],
+            ),
+            (
+                CONF_ARERA_S3,
+                [
+                    "sensor.arera_quota_energia",
+                    "sensor.arera_tariffe_regolate_s3",
+                    "sensor.arera_s3",
+                ],
+            ),
+            (
+                CONF_ARERA_UC3,
+                [
+                    "sensor.arera_uc3",
+                    "sensor.arera_tariffe_regolate_uc3",
+                ],
+            ),
+            (
+                CONF_ARERA_UC6_QE,
+                [
+                    "sensor.arera_uc6_qe",
+                    "sensor.arera_tariffe_regolate_uc6qe",
+                ],
+            ),
+            (
+                CONF_ARERA_UC6_QP,
+                [
+                    "sensor.arera_uc6_qp",
+                    "sensor.arera_tariffe_regolate_uc6qp",
+                ],
+            ),
+            (
+                CONF_ARERA_ASOS,
+                [
+                    "sensor.arera_asos",
+                    "sensor.arera_tariffe_regolate_asos",
+                ],
+            ),
+            (
+                CONF_ARERA_ARIM,
+                [
+                    "sensor.arera_arim",
+                    "sensor.arera_tariffe_regolate_arim",
+                ],
+            ),
         ]
 
-        for conf_key, entity_id in arera_pairs:
-            state = self.hass.states.get(entity_id)
-            if state is not None:
+        for conf_key, candidates in arera_candidates:
+            found_id = None
+            for cand in candidates:
+                if self.hass.states.get(cand) is not None:
+                    found_id = cand
+                    break
+
+            if found_id is not None:
                 schema_dict[
-                    vol.Optional(conf_key, description={"suggested_value": entity_id})
+                    vol.Optional(conf_key, description={"suggested_value": found_id})
                 ] = EntitySelector(EntitySelectorConfig(domain="sensor"))
             else:
                 schema_dict[vol.Optional(conf_key)] = EntitySelector(
