@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -21,6 +22,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+SWITCH_MAP: dict[str, str] = {
+    CONF_USA_FOGNATURA: "switch.fognatura",
+    CONF_USA_DEPURAZIONE: "switch.depurazione",
+}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -31,6 +37,31 @@ async def async_setup_entry(
     commodity = entry.data.get(CONF_COMMODITY)
     if commodity != COMMODITY_WATER:
         return
+
+    # Migrazione automatica: aggiorna gli entity_id degli switch rimuovendo
+    # il prefisso dell'operatore/offerta verso switch.fognatura e switch.depurazione
+    ent_reg = er.async_get(hass)
+    prefix = f"{entry.entry_id}_"
+    for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if reg_entry.domain == "switch" and reg_entry.unique_id.startswith(prefix):
+            key = reg_entry.unique_id[len(prefix):]
+            desired_entity_id = SWITCH_MAP.get(key)
+            if desired_entity_id and reg_entry.entity_id != desired_entity_id:
+                if ent_reg.async_get(desired_entity_id) is None:
+                    _LOGGER.info(
+                        "Migrazione automatica switch entity_id da %s a %s",
+                        reg_entry.entity_id,
+                        desired_entity_id,
+                    )
+                    try:
+                        ent_reg.async_update_entity(reg_entry.entity_id, new_entity_id=desired_entity_id)
+                    except Exception as err:
+                        _LOGGER.warning(
+                            "Impossibile migrare switch entity_id %s in %s: %s",
+                            reg_entry.entity_id,
+                            desired_entity_id,
+                            err,
+                        )
 
     contract_name = entry.data.get("name", "Bolletta Acqua")
     operator_name = entry.data.get("operator", "Acea").capitalize()
