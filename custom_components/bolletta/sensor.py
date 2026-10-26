@@ -105,7 +105,7 @@ async def async_setup_entry(
     if commodity == COMMODITY_WATER:
         loaded_ops = load_operators_and_offers(COMMODITY_WATER)
         operator_name = loaded_ops.get(operator, {}).get("name", operator.capitalize())
-        contract_name = data.get("name", f"Bolletta {operator_name}")
+        contract_name = data.get("name") or "Bolletta Acqua"
 
         annuo_sensor = ConsumoAcquaAnnuoSensor(hass, entry, "consumo_annuo_acqua", contract_name, operator_name)
         totale_sensor = CostoAcquaTotaleSensor(hass, entry, "costo_acqua_totale", contract_name, operator_name, annuo_sensor)
@@ -118,10 +118,17 @@ async def async_setup_entry(
         async_add_entities([annuo_sensor, totale_sensor, medio_sensor, scaglione_sensor, qf_day_sensor, qf_year_sensor, qv_sensor], True)
         return
 
+    if commodity == COMMODITY_GAS:
+        loaded_ops = load_operators_and_offers(COMMODITY_GAS)
+        operator_name = loaded_ops.get(operator, {}).get("name", operator.capitalize())
+        contract_name = data.get("name") or "Bolletta Gas"
+        # Al momento la commodity gas non espone sensori complessi
+        return
+
     # Default: Energia Elettrica
     loaded_ops = load_operators_and_offers(COMMODITY_ENERGY)
     operator_name = loaded_ops.get(operator, {}).get("name", OPERATORS.get(operator, operator.capitalize()))
-    contract_name = data.get("name", f"Bolletta {operator_name}")
+    contract_name = data.get("name") or "Bolletta Luce"
 
     multiorario = data.get(CONF_USE_MULTIORARIO, True)
 
@@ -184,10 +191,32 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
+SENSOR_NAMES: dict[str, str] = {
+    # Energia Elettrica
+    "prezzo_unitario_f0": "Prezzo Unitario F0",
+    "prezzo_unitario_f1": "Prezzo Unitario F1",
+    "prezzo_unitario_f2": "Prezzo Unitario F2",
+    "prezzo_unitario_f3": "Prezzo Unitario F3",
+    "prezzo_unitario_attuale": "Prezzo Unitario Attuale",
+    "fascia_attuale": "Fascia Attuale",
+    "prezzo_fisso_giornaliero": "Prezzo Fisso Giornaliero",
+    "costo_fisso_mensile": "Costo Fisso Mensile",
+    "potenza_impegnata": "Potenza Impegnata",
+    # Servizio Idrico
+    "consumo_annuo_acqua": "Consumo Annuo Acqua",
+    "costo_acqua_totale": "Costo Totale Acqua",
+    "prezzo_medio_m3": "Prezzo Medio al m³",
+    "scaglione_acqua": "Scaglione Idrico Attivo",
+    "quota_fissa_giornaliera_acqua": "Quota Fissa Giornaliera Acqua",
+    "quota_fissa_annua_acqua": "Quota Fissa Annua Acqua",
+    "quota_variabile_acqua": "Quota Variabile Consumo Acqua",
+}
+
+
 class BollettaBaseSensor(SensorEntity):
     """Classe base per i sensori Bolletta."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
 
     def __init__(
         self,
@@ -205,12 +234,14 @@ class BollettaBaseSensor(SensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_{translation_key}"
         self._contract_name = contract_name
         self._operator_name = operator_name
+        self._attr_name = SENSOR_NAMES.get(translation_key, translation_key.replace("_", " ").title())
 
         commodity = entry.data.get(CONF_COMMODITY, COMMODITY_ENERGY)
+        offer_name = entry.options.get("offer_name", entry.data.get("offer_name", ""))
         model_name = {
-            COMMODITY_ENERGY: f"Fornitura Energia Elettrica ({operator_name})",
-            COMMODITY_WATER: f"Servizio Idrico ({operator_name})",
-            COMMODITY_GAS: f"Fornitura Gas ({operator_name})",
+            COMMODITY_ENERGY: f"Fornitura Energia Elettrica ({operator_name}{f' - {offer_name}' if offer_name else ''})",
+            COMMODITY_WATER: f"Servizio Idrico ({operator_name}{f' - {offer_name}' if offer_name else ''})",
+            COMMODITY_GAS: f"Fornitura Gas ({operator_name}{f' - {offer_name}' if offer_name else ''})",
         }.get(commodity, f"Fornitura {operator_name}")
 
         entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
@@ -223,6 +254,11 @@ class BollettaBaseSensor(SensorEntity):
             model=model_name,
             sw_version=str(version) if version else "1.0.0",
         )
+
+    @property
+    def suggested_object_id(self) -> str | None:
+        """Suggerisce l'ID entità generico senza prefisso operatore o offerta."""
+        return self._key
 
     @property
     def config(self) -> dict[str, Any]:

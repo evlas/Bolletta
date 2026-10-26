@@ -64,7 +64,7 @@ async def async_setup_entry(
 class BollettaWaterSwitch(SwitchEntity):
     """Switch per abilitare o disabilitare fognatura o depurazione nel calcolo bolletta acqua."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
 
     def __init__(
         self,
@@ -96,6 +96,11 @@ class BollettaWaterSwitch(SwitchEntity):
             model="Contratto Servizio Idrico",
             sw_version=str(version) if version else "1.0.0",
         )
+
+    @property
+    def suggested_object_id(self) -> str | None:
+        """Suggerisce l'ID entità generico."""
+        return self._attr_translation_key
 
     @property
     def is_on(self) -> bool:

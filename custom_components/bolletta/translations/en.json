@@ -130,8 +130,30 @@
   "options": {
     "step": {
       "init": {
-        "title": "Contract Options",
-        "description": "Edit contract parameters or linked sensors.",
+        "title": "Supply Contract Options",
+        "description": "Select what you would like to configure for this supply:",
+        "menu_options": {
+          "params": "Edit contract parameters & sensors",
+          "change_operator": "Change provider / operator"
+        }
+      },
+      "change_operator": {
+        "title": "Change Provider / Operator",
+        "description": "Select the new provider for {commodity}.",
+        "data": {
+          "operator": "New Provider"
+        }
+      },
+      "change_offer": {
+        "title": "Select Commercial Offer",
+        "description": "Choose the commercial offer for {operator}.",
+        "data": {
+          "offer": "Commercial Offer"
+        }
+      },
+      "params": {
+        "title": "Supply Parameters & Sensors",
+        "description": "Verify or customize economic parameters and linked sensors.",
         "data": {
           "power_kw": "Meter Contracted Power (kW)",
           "ccl": "Consumption Fee / Spread (€/kWh)",
@@ -166,7 +188,9 @@
           "t_depurazione": "Purification Rate (€/m³)",
           "ui1": "UI1 Equalization Surcharge (€/m³)",
           "ui2": "UI2 Equalization Surcharge (€/m³)",
-          "ui3": "UI3 Equalization Surcharge (€/m³)"
+          "ui3": "UI3 Equalization Surcharge (€/m³)",
+          "qf_anno": "Retail Commercialization Fee (€/year)",
+          "spread": "Spread on PSV (€/Smc)"
         }
       }
     }

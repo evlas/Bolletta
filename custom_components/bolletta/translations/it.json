@@ -130,8 +130,30 @@
   "options": {
     "step": {
       "init": {
-        "title": "Opzioni Contratto Bolletta",
-        "description": "Modifica i parametri contrattuali o i sensori collegati.",
+        "title": "Opzioni Fornitura Bolletta",
+        "description": "Seleziona cosa desideri configurare per questa fornitura:",
+        "menu_options": {
+          "params": "Modifica parametri contrattuali e sensori",
+          "change_operator": "Cambia fornitore / operatore"
+        }
+      },
+      "change_operator": {
+        "title": "Cambia Fornitore / Gestore",
+        "description": "Seleziona il nuovo operatore per {commodity}.",
+        "data": {
+          "operator": "Nuovo Operatore"
+        }
+      },
+      "change_offer": {
+        "title": "Seleziona Nuova Offerta Commerciale",
+        "description": "Scegli l'offerta per l'operatore {operator}.",
+        "data": {
+          "offer": "Offerta Commerciale"
+        }
+      },
+      "params": {
+        "title": "Parametri Fornitura e Sensori",
+        "description": "Verifica o personalizza le condizioni contrattuali e i sensori collegati.",
         "data": {
           "power_kw": "Potenza Impegnata Contatore (kW)",
           "ccl": "Contributo al Consumo / Spread (€/kWh)",
@@ -166,7 +188,9 @@
           "t_depurazione": "Tariffa Depurazione (€/m³)",
           "ui1": "Oneri Perequazione UI1 (€/m³)",
           "ui2": "Oneri Perequazione UI2 (€/m³)",
-          "ui3": "Oneri Perequazione UI3 (€/m³)"
+          "ui3": "Oneri Perequazione UI3 (€/m³)",
+          "qf_anno": "Quota Fissa Commercializzazione (€/anno)",
+          "spread": "Spread su PSV (€/Smc)"
         }
       }
     }
