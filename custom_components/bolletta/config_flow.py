@@ -70,6 +70,8 @@ from .const import (
     CONF_UI1,
     CONF_UI2,
     CONF_UI3,
+    CONF_USA_DEPURAZIONE,
+    CONF_USA_FOGNATURA,
     CONF_USA_FOGNATURA_DEPURAZIONE,
     CONF_USE_MULTIORARIO,
     CONF_WATER_SENSOR,
@@ -579,8 +581,12 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Required(
-                    CONF_USA_FOGNATURA_DEPURAZIONE,
-                    default=bool(defaults.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+                    CONF_USA_FOGNATURA,
+                    default=bool(defaults.get(CONF_USA_FOGNATURA, defaults.get(CONF_USA_FOGNATURA_DEPURAZIONE, True))),
+                ): bool,
+                vol.Required(
+                    CONF_USA_DEPURAZIONE,
+                    default=bool(defaults.get(CONF_USA_DEPURAZIONE, defaults.get(CONF_USA_FOGNATURA_DEPURAZIONE, True))),
                 ): bool,
                 vol.Required(
                     CONF_S1, default=float(defaults.get(CONF_S1, 55.0))
@@ -779,8 +785,12 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
                     NumberSelectorConfig(min=0.0, max=200.0, step="any", unit_of_measurement="€/anno", mode=NumberSelectorMode.BOX)
                 ),
                 vol.Required(
-                    CONF_USA_FOGNATURA_DEPURAZIONE,
-                    default=bool(entry_data.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+                    CONF_USA_FOGNATURA,
+                    default=bool(entry_data.get(CONF_USA_FOGNATURA, entry_data.get(CONF_USA_FOGNATURA_DEPURAZIONE, True))),
+                ): bool,
+                vol.Required(
+                    CONF_USA_DEPURAZIONE,
+                    default=bool(entry_data.get(CONF_USA_DEPURAZIONE, entry_data.get(CONF_USA_FOGNATURA_DEPURAZIONE, True))),
                 ): bool,
                 vol.Required(
                     CONF_S1, default=float(entry_data.get(CONF_S1, 55.0))

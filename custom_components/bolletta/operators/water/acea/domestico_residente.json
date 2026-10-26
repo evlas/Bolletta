@@ -6,6 +6,8 @@
   "qf_fognatura": 4.90,
   "qf_depurazione": 14.70,
   "usa_fognatura_depurazione": true,
+  "usa_fognatura": true,
+  "usa_depurazione": true,
   "s1": 55,
   "s2": 108,
   "s3": 162,

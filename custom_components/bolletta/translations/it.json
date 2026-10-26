@@ -87,6 +87,8 @@
           "qf_fognatura": "Quota Fissa Fognatura (€/anno)",
           "qf_depurazione": "Quota Fissa Depurazione (€/anno)",
           "usa_fognatura_depurazione": "Abilita Fognatura e Depurazione",
+          "usa_fognatura": "Abilita Fognatura nel calcolo",
+          "usa_depurazione": "Abilita Depurazione nel calcolo",
           "s1": "Soglia Tariffa Agevolata (m³/anno)",
           "s2": "Soglia Tariffa Base (m³/anno)",
           "s3": "Soglia I Eccedenza (m³/anno)",
@@ -147,6 +149,8 @@
           "qf_fognatura": "Quota Fissa Fognatura (€/anno)",
           "qf_depurazione": "Quota Fissa Depurazione (€/anno)",
           "usa_fognatura_depurazione": "Abilita Fognatura e Depurazione",
+          "usa_fognatura": "Abilita Fognatura nel calcolo",
+          "usa_depurazione": "Abilita Depurazione nel calcolo",
           "s1": "Soglia Tariffa Agevolata (m³/anno)",
           "s2": "Soglia Tariffa Base (m³/anno)",
           "s3": "Soglia I Eccedenza (m³/anno)",
@@ -166,6 +170,14 @@
     }
   },
   "entity": {
+    "switch": {
+      "fognatura": {
+        "name": "Fognatura"
+      },
+      "depurazione": {
+        "name": "Depurazione"
+      }
+    },
     "sensor": {
       "prezzo_unitario_f0": {
         "name": "Prezzo unitario F0"

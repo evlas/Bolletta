@@ -65,6 +65,8 @@ from .const import (
     CONF_UI1,
     CONF_UI2,
     CONF_UI3,
+    CONF_USA_DEPURAZIONE,
+    CONF_USA_FOGNATURA,
     CONF_USA_FOGNATURA_DEPURAZIONE,
     CONF_USE_MULTIORARIO,
     CONF_WATER_SENSOR,
@@ -594,12 +596,16 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
         water_entity = cfg.get(CONF_WATER_SENSOR)
         mc = self._get_float_state(water_entity, 0.0)
 
+        usa_fog = bool(cfg.get(CONF_USA_FOGNATURA, cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)))
+        usa_dep = bool(cfg.get(CONF_USA_DEPURAZIONE, cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)))
+
         self.calc_result = compute_bolletta_acqua(
             mc=mc,
             qf_idrico=float(cfg.get(CONF_QF_IDRICO, DEFAULT_WATER_VALUES[CONF_QF_IDRICO])),
             qf_fognatura=float(cfg.get(CONF_QF_FOGNATURA, DEFAULT_WATER_VALUES[CONF_QF_FOGNATURA])),
             qf_depurazione=float(cfg.get(CONF_QF_DEPURAZIONE, DEFAULT_WATER_VALUES[CONF_QF_DEPURAZIONE])),
-            usa_fognatura_depurazione=bool(cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+            usa_fognatura=usa_fog,
+            usa_depurazione=usa_dep,
             s1=float(cfg.get(CONF_S1, DEFAULT_WATER_VALUES[CONF_S1])),
             s2=float(cfg.get(CONF_S2, DEFAULT_WATER_VALUES[CONF_S2])),
             s3=float(cfg.get(CONF_S3, DEFAULT_WATER_VALUES[CONF_S3])),
@@ -623,7 +629,8 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
             "scaglione": self.calc_result["scaglione"],
             "quota_fissa_annua": self.calc_result["quota_fissa_annua"],
             "quota_variabile": self.calc_result["quota_variabile"],
-            "fognatura_depurazione_attive": bool(cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)),
+            "fognatura_attiva": usa_fog,
+            "depurazione_attiva": usa_dep,
         }
 
 

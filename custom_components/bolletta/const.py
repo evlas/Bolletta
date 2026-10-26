@@ -138,6 +138,8 @@ CONF_QF_IDRICO = "qf_idrico"
 CONF_QF_FOGNATURA = "qf_fognatura"
 CONF_QF_DEPURAZIONE = "qf_depurazione"
 CONF_USA_FOGNATURA_DEPURAZIONE = "usa_fognatura_depurazione"
+CONF_USA_FOGNATURA = "usa_fognatura"
+CONF_USA_DEPURAZIONE = "usa_depurazione"
 CONF_S1 = "s1"
 CONF_S2 = "s2"
 CONF_S3 = "s3"
@@ -158,6 +160,8 @@ DEFAULT_WATER_VALUES = {
     CONF_QF_FOGNATURA: 4.90,
     CONF_QF_DEPURAZIONE: 14.70,
     CONF_USA_FOGNATURA_DEPURAZIONE: True,
+    CONF_USA_FOGNATURA: True,
+    CONF_USA_DEPURAZIONE: True,
     CONF_S1: 55.0,
     CONF_S2: 108.0,
     CONF_S3: 162.0,

@@ -192,14 +192,16 @@ custom_components/bolletta/operators/
 | `sensor.<istanza>_costo_fisso_mensile` | Quota fissa media mensile | EUR/month | measurement |
 
 ### Entità per Acqua / Servizio Idrico
-| Entità | Descrizione | Unità | Classe |
+| Entità | Tipo | Descrizione | Unità |
 | :--- | :--- | :--- | :--- |
-| `sensor.<istanza>_costo_acqua_totale` | **Costo totale calcolato** (IVA inclusa) sul consumo | EUR | total |
-| `sensor.<istanza>_prezzo_medio_m3` | Prezzo medio finito per $\text{m}^3$ consumato | EUR/m³ | measurement |
-| `sensor.<istanza>_scaglione_acqua` | Nome dello scaglione TICSI attualmente raggiunto | - | - |
-| `sensor.<istanza>_quota_fissa_giornaliera_acqua` | Quota fissa complessiva giornaliera | EUR/day | measurement |
-| `sensor.<istanza>_quota_fissa_annua_acqua` | Quota fissa complessiva annua | EUR/year | measurement |
-| `sensor.<istanza>_quota_variabile_acqua` | Quota variabile complessiva imponibile | EUR | measurement |
+| `sensor.<istanza>_costo_acqua_totale` | Sensore | **Costo totale calcolato** (IVA inclusa) sul consumo | EUR |
+| `sensor.<istanza>_prezzo_medio_m3` | Sensore | Prezzo medio finito per $\text{m}^3$ consumato | EUR/m³ |
+| `sensor.<istanza>_scaglione_acqua` | Sensore | Nome dello scaglione TICSI attualmente raggiunto | - |
+| `sensor.<istanza>_quota_fissa_giornaliera_acqua` | Sensore | Quota fissa complessiva giornaliera | EUR/day |
+| `sensor.<istanza>_quota_fissa_annua_acqua` | Sensore | Quota fissa complessiva annua | EUR/year |
+| `sensor.<istanza>_quota_variabile_acqua` | Sensore | Quota variabile complessiva imponibile | EUR |
+| `switch.<istanza>_fognatura` | Interruttore | **Abilita/disabilita fognatura** nel calcolo (fissa + variabile) | - |
+| `switch.<istanza>_depurazione` | Interruttore | **Abilita/disabilita depurazione** nel calcolo (fissa + variabile) | - |
 
 ---
 

@@ -240,7 +240,6 @@ def compute_bolletta_acqua(
     qf_idrico: float,
     qf_fognatura: float,
     qf_depurazione: float,
-    usa_fognatura_depurazione: bool,
     s1: float,
     s2: float,
     s3: float,
@@ -256,13 +255,27 @@ def compute_bolletta_acqua(
     ui2: float,
     ui3: float,
     iva_percent: float,
+    usa_fognatura: bool = True,
+    usa_depurazione: bool = True,
+    usa_fognatura_depurazione: bool | None = None,
 ) -> dict[str, Any]:
     """Calcola i dettagli della bolletta dell'acqua secondo le tariffe a scaglioni ARERA TICSI."""
-    qf_extra = (qf_fognatura + qf_depurazione) if usa_fognatura_depurazione else 0.0
+    if usa_fognatura_depurazione is not None:
+        if not usa_fognatura_depurazione:
+            usa_fog = False
+            usa_dep = False
+        else:
+            usa_fog = usa_fognatura
+            usa_dep = usa_depurazione
+    else:
+        usa_fog = bool(usa_fognatura)
+        usa_dep = bool(usa_depurazione)
+
+    qf_extra = (qf_fognatura if usa_fog else 0.0) + (qf_depurazione if usa_dep else 0.0)
     qf_tot = qf_idrico + qf_extra
 
     ui = ui1 + ui2 + ui3
-    var_fog_dep = (t_fognatura + t_depurazione) if usa_fognatura_depurazione else 0.0
+    var_fog_dep = (t_fognatura if usa_fog else 0.0) + (t_depurazione if usa_dep else 0.0)
     variabili_extra = ui + var_fog_dep
 
     # Calcolo progressivo scaglioni acquedotto
@@ -307,5 +320,7 @@ def compute_bolletta_acqua(
         "quota_fissa_giornaliera": round(qf_giornaliera, 4),
         "quota_fissa_annua": round(qf_annua, 2),
         "quota_variabile": round((idrico + mc * variabili_extra) * iva_multiplier, 2),
+        "fognatura_attiva": usa_fog,
+        "depurazione_attiva": usa_dep,
     }
 

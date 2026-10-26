@@ -161,14 +161,16 @@ custom_components/bolletta/operators/
 | `sensor.<instance>_costo_fisso_mensile` | Monthly average fixed charges | EUR/month | measurement |
 
 ### Water Entities
-| Entity | Description | Unit | Class |
+| Entity | Type | Description | Unit |
 | :--- | :--- | :--- | :--- |
-| `sensor.<instance>_costo_acqua_totale` | **Total calculated bill cost** (incl. VAT) for consumption | EUR | total |
-| `sensor.<instance>_prezzo_medio_m3` | Average finished price per $\text{m}^3$ consumed | EUR/m³ | measurement |
-| `sensor.<instance>_scaglione_acqua` | Current active TICSI consumption tier reached | - | - |
-| `sensor.<instance>_quota_fissa_giornaliera_acqua` | Total daily fixed charges | EUR/day | measurement |
-| `sensor.<instance>_quota_fissa_annua_acqua` | Total annual fixed charges | EUR/year | measurement |
-| `sensor.<instance>_quota_variabile_acqua` | Total variable taxable charges | EUR | measurement |
+| `sensor.<instance>_costo_acqua_totale` | Sensor | **Total calculated bill cost** (incl. VAT) for consumption | EUR |
+| `sensor.<instance>_prezzo_medio_m3` | Sensor | Average finished price per $\text{m}^3$ consumed | EUR/m³ |
+| `sensor.<instance>_scaglione_acqua` | Sensor | Current active TICSI consumption tier reached | - |
+| `sensor.<instance>_quota_fissa_giornaliera_acqua` | Sensor | Total daily fixed charges | EUR/day |
+| `sensor.<instance>_quota_fissa_annua_acqua` | Sensor | Total annual fixed charges | EUR/year |
+| `sensor.<instance>_quota_variabile_acqua` | Sensor | Total variable taxable charges | EUR |
+| `switch.<instance>_fognatura` | Switch | **Enable/disable sewer** in calculation (fixed + variable) | - |
+| `switch.<instance>_depurazione` | Switch | **Enable/disable purification** in calculation (fixed + variable) | - |
 
 ---
 

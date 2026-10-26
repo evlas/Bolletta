@@ -87,6 +87,8 @@
           "qf_fognatura": "Sewer Fixed Fee (€/year)",
           "qf_depurazione": "Purification Fixed Fee (€/year)",
           "usa_fognatura_depurazione": "Enable Sewer & Purification",
+          "usa_fognatura": "Enable Sewer in calculation",
+          "usa_depurazione": "Enable Purification in calculation",
           "s1": "Discounted Tier Threshold (m³/year)",
           "s2": "Base Tier Threshold (m³/year)",
           "s3": "Tier 1 Excess Threshold (m³/year)",
@@ -147,6 +149,8 @@
           "qf_fognatura": "Sewer Fixed Fee (€/year)",
           "qf_depurazione": "Purification Fixed Fee (€/year)",
           "usa_fognatura_depurazione": "Enable Sewer & Purification",
+          "usa_fognatura": "Enable Sewer in calculation",
+          "usa_depurazione": "Enable Purification in calculation",
           "s1": "Discounted Tier Threshold (m³/year)",
           "s2": "Base Tier Threshold (m³/year)",
           "s3": "Tier 1 Excess Threshold (m³/year)",
@@ -166,6 +170,14 @@
     }
   },
   "entity": {
+    "switch": {
+      "fognatura": {
+        "name": "Sewer"
+      },
+      "depurazione": {
+        "name": "Purification"
+      }
+    },
     "sensor": {
       "prezzo_unitario_f0": {
         "name": "Single-rate unit price (F0)"
