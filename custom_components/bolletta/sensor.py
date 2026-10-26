@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
@@ -98,6 +99,32 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Configura i sensori Bolletta da ConfigEntry."""
+    # Migrazione automatica: aggiorna gli entity_id esistenti nel registro
+    # rimuovendo prefissi operatore/offerta e standardizzandoli a sensor.<chiave>
+    ent_reg = er.async_get(hass)
+    prefix = f"{entry.entry_id}_"
+    for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if reg_entry.domain == "sensor" and reg_entry.unique_id.startswith(prefix):
+            key = reg_entry.unique_id[len(prefix):]
+            desired_entity_id = f"sensor.{key}"
+            if reg_entry.entity_id != desired_entity_id:
+                if ent_reg.async_get(desired_entity_id) is None:
+                    _LOGGER.info(
+                        "Migrazione automatica entity_id per %s da %s a %s",
+                        key,
+                        reg_entry.entity_id,
+                        desired_entity_id,
+                    )
+                    try:
+                        ent_reg.async_update_entity(reg_entry.entity_id, new_entity_id=desired_entity_id)
+                    except Exception as err:
+                        _LOGGER.warning(
+                            "Impossibile migrare entity_id %s in %s: %s",
+                            reg_entry.entity_id,
+                            desired_entity_id,
+                            err,
+                        )
+
     data = {**entry.data, **entry.options}
     commodity = data.get(CONF_COMMODITY, COMMODITY_ENERGY)
     operator = data.get(CONF_OPERATOR, "custom")
