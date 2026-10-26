@@ -6,6 +6,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
 
@@ -16,8 +17,18 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Imposta la voce di configurazione per Bolletta."""
+    integration_version: str | None = None
+    try:
+        integration = await async_get_integration(hass, DOMAIN)
+        if integration.version is not None:
+            integration_version = str(integration.version)
+    except Exception:
+        pass
+
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {}
+    hass.data[DOMAIN][entry.entry_id] = {
+        "version": integration_version,
+    }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

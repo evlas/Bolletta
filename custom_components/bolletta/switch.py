@@ -86,11 +86,15 @@ class BollettaWaterSwitch(SwitchEntity):
         self._attr_icon = icon
         self._attr_unique_id = f"{entry.entry_id}_{key}"
 
+        entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+        version = entry_data.get("version") if isinstance(entry_data, dict) else None
+
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=contract_name,
             manufacturer=operator_name,
             model="Contratto Servizio Idrico",
+            sw_version=str(version) if version else "1.0.0",
         )
 
     @property

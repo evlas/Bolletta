@@ -213,11 +213,15 @@ class BollettaBaseSensor(SensorEntity):
             COMMODITY_GAS: f"Fornitura Gas ({operator_name})",
         }.get(commodity, f"Fornitura {operator_name}")
 
+        entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+        version = entry_data.get("version") if isinstance(entry_data, dict) else None
+
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=contract_name,
             manufacturer=operator_name,
             model=model_name,
+            sw_version=str(version) if version else "1.0.0",
         )
 
     @property
