@@ -95,23 +95,31 @@ Italian water billing follows the Integrated Water Services Tariff Framework (**
 Sum of annual fixed fees divided by 365 for a daily cost:
 $$\text{QF}_{\text{tot}} = \text{QF}_{\text{aqueduct}} + \text{QF}_{\text{sewerage}} + \text{QF}_{\text{depuration}}$$
 
-### 2. Variable Aqueduct Charge (Progressive Tiers)
-Volumetric consumption in $\text{m}^3$ is progressively broken down across 5 tiers:
+### 2. Calendar Year Accounting (Jan 1 - Dec 31)
+Under Italian ARERA TICSI standards, water consumption bands are structured on an **annual solar calendar cycle** (1 January – 31 December).
+- The integration exposes a native entity `sensor.<instance>_consumo_annuo_acqua` ($\text{m}^3$, `total_increasing`) tracking net water consumed since 1 January.
+- **If you use a cumulative / lifetime water meter** (e.g. an impulse pulse meter showing continuous $380\text{ m}^3$), you can set the meter reading as of 1 January (`water_annual_baseline`). The calculation will compute:
+  $$\text{Annual Consumption} = \text{Current Meter Reading} - \text{Jan 1 Baseline}$$
+- **Automatic New Year's Midnight Reset**: at midnight on 31 December (transitioning to 1 January at 00:00:05), the integration automatically captures the current meter reading as the new year's baseline and resets annual consumption to 0, restarting billing from the Subsidized Tier.
+- **If you connect a sensor that already resets annually** (e.g. an HA `utility_meter` with `cycle: yearly`), leave the baseline at 0 and the sensor value will be used directly.
+
+### 3. Variable Aqueduct Charge (Progressive Tiers)
+Annual consumption in $\text{m}^3$ is progressively broken down across 5 tiers:
 - **Subsidized Tier (Agevolata)**: $0 \le \text{volume} \le S_1$ (default $55\text{ m}^3$)
 - **Base Tier**: $S_1 < \text{volume} \le S_2$ (default $108\text{ m}^3$)
 - **Tier 1 Excess (I Eccedenza)**: $S_2 < \text{volume} \le S_3$ (default $162\text{ m}^3$)
 - **Tier 2 Excess (II Eccedenza)**: $S_3 < \text{volume} \le S_4$ (default $216\text{ m}^3$)
 - **Tier 3 Excess (III Eccedenza)**: $\text{volume} > S_4$ ($> 216\text{ m}^3$)
 
-### 3. Sewerage, Wastewater Treatment & ARERA Equalization
-- **Sewerage**: $\text{Volume} \times T_{\text{sewerage}}$
-- **Depuration**: $\text{Volume} \times T_{\text{depuration}}$
-- **ARERA Equalization Surcharges**: $\text{Volume} \times (UI_1 + UI_2 + UI_3)$
+### 4. Sewerage, Wastewater Treatment & ARERA Equalization
+- **Sewerage**: $\text{Annual Volume} \times T_{\text{sewerage}}$ (can be disabled via options or switch)
+- **Depuration**: $\text{Annual Volume} \times T_{\text{depuration}}$ (can be disabled via options or switch)
+- **ARERA Equalization Surcharges**: $\text{Annual Volume} \times (UI_1 + UI_2 + UI_3)$
   - $UI_1$: Tariff relief for earthquake recovery
   - $UI_2$: Water service quality promotion
   - $UI_3$: National water social bonus
 
-### 4. Total Water Bill
+### 5. Total Water Bill
 $$\text{Taxable Base} = \text{QF}_{\text{tot}} + \text{Variable Aqueduct} + \text{Sewerage} + \text{Depuration} + UI\text{ Charges}$$
 $$\text{Total Water Cost} = \text{Taxable Base} \times \left(1 + \frac{\text{VAT}}{100}\right)$$
 
@@ -163,6 +171,7 @@ custom_components/bolletta/operators/
 ### Water Entities
 | Entity | Type | Description | Unit |
 | :--- | :--- | :--- | :--- |
+| `sensor.<instance>_consumo_annuo_acqua` | Sensor | **Annual water consumed** (1 Jan - 31 Dec) | m³ |
 | `sensor.<instance>_costo_acqua_totale` | Sensor | **Total calculated bill cost** (incl. VAT) for consumption | EUR |
 | `sensor.<instance>_prezzo_medio_m3` | Sensor | Average finished price per $\text{m}^3$ consumed | EUR/m³ |
 | `sensor.<instance>_scaglione_acqua` | Sensor | Current active TICSI consumption tier reached | - |

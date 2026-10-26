@@ -89,6 +89,7 @@
           "usa_fognatura_depurazione": "Enable Sewer & Purification",
           "usa_fognatura": "Enable Sewer in calculation",
           "usa_depurazione": "Enable Purification in calculation",
+          "water_annual_baseline": "Initial Meter Reading on January 1st (m³)",
           "s1": "Discounted Tier Threshold (m³/year)",
           "s2": "Base Tier Threshold (m³/year)",
           "s3": "Tier 1 Excess Threshold (m³/year)",
@@ -151,6 +152,7 @@
           "usa_fognatura_depurazione": "Enable Sewer & Purification",
           "usa_fognatura": "Enable Sewer in calculation",
           "usa_depurazione": "Enable Purification in calculation",
+          "water_annual_baseline": "Initial Meter Reading on January 1st (m³)",
           "s1": "Discounted Tier Threshold (m³/year)",
           "s2": "Base Tier Threshold (m³/year)",
           "s3": "Tier 1 Excess Threshold (m³/year)",
@@ -179,6 +181,9 @@
       }
     },
     "sensor": {
+      "consumo_annuo_acqua": {
+        "name": "Annual water consumption (Jan 1 - Dec 31)"
+      },
       "prezzo_unitario_f0": {
         "name": "Single-rate unit price (F0)"
       },

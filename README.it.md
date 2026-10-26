@@ -95,23 +95,31 @@ La tariffazione idrica in Italia segue il Testo Integrato Corrispettivi Servizi 
 Somma delle quote fisse annuali divise per 365 per ottenere l'impatto giornaliero:
 $$\text{QF}_{\text{tot}} = \text{QF}_{\text{idrico}} + \text{QF}_{\text{fognatura}} + \text{QF}_{\text{depurazione}}$$
 
-### 2. Quota Variabile Idrico (a Scaglioni Progressivi)
-Il consumo in $\text{m}^3$ viene ripartito progressivamente su 5 scaglioni:
+### 2. Contabilizzazione Annuale Solare (1 Gennaio - 31 Dicembre)
+Secondo le regole ARERA TICSI, gli scaglioni di consumo sono espressi in $\text{m}^3\text{/anno}$ e si riferiscono tassativamente all'**anno solare (dal 1° gennaio al 31 dicembre)**:
+- L'integrazione espone l'entità nativa `sensor.<istanza>_consumo_annuo_acqua` ($\text{m}^3$, `total_increasing`) che traccia il consumo netto maturato dal 1° gennaio.
+- **Se usi un contatore cumulativo a lettura assoluta** (es. contatore a impulsi che segna $380\text{ m}^3$ continuativi), puoi impostare la lettura al 1° gennaio (`water_annual_baseline`). Il calcolo utilizzerà:
+  $$\text{Consumo Annuo} = \text{Lettura Attuale} - \text{Lettura al 1° Gennaio}$$
+- **Reset automatico di Capodanno**: alla mezzanotte del 31 dicembre (passaggio al 1° gennaio alle 00:00:05), l'integrazione acquisisce automaticamente la nuova lettura come baseline del nuovo anno solare e azzera il conteggio annuo, facendo ripartire la fatturazione dallo scaglione di Tariffa Agevolata.
+- **Se colleghi un sensore già annuale** (es. `utility_meter` con `cycle: yearly`), puoi lasciare la baseline a 0 e il sensore verrà utilizzato direttamente.
+
+### 3. Quota Variabile Idrico (a Scaglioni Progressivi)
+Il consumo annuo in $\text{m}^3$ viene ripartito progressivamente su 5 scaglioni:
 - **Tariffa Agevolata**: per consumi da $0$ a $S_1$ (default $55\text{ m}^3$)
 - **Tariffa Base**: per consumi da $S_1$ a $S_2$ (default $108\text{ m}^3$)
 - **I Eccedenza**: per consumi da $S_2$ a $S_3$ (default $162\text{ m}^3$)
 - **II Eccedenza**: per consumi da $S_3$ a $S_4$ (default $216\text{ m}^3$)
 - **III Eccedenza**: per consumi superiori a $S_4$ ($> 216\text{ m}^3$)
 
-### 3. Fognatura, Depurazione e Oneri Perequativi ARERA
-- **Fognatura**: $\text{Consumo} \times T_{\text{fognatura}}$
-- **Depurazione**: $\text{Consumo} \times T_{\text{depurazione}}$
-- **Componenti Perequative ARERA**: $\text{Consumo} \times (UI_1 + UI_2 + UI_3)$
+### 4. Fognatura, Depurazione e Oneri Perequativi ARERA
+- **Fognatura**: $\text{Consumo Annuo} \times T_{\text{fognatura}}$ (escludibile via switch)
+- **Depurazione**: $\text{Consumo Annuo} \times T_{\text{depurazione}}$ (escludibile via switch)
+- **Componenti Perequative ARERA**: $\text{Consumo Annuo} \times (UI_1 + UI_2 + UI_3)$
   - $UI_1$: Agevolazioni tariffarie per eventi sismici
   - $UI_2$: Promozione della qualità dei servizi idrici
   - $UI_3$: Fondo sociale idrico nazionale per utenze disagiate
 
-### 4. Totale Bolletta
+### 5. Totale Bolletta
 $$\text{Imponibile} = \text{QF}_{\text{tot}} + \text{Variabile Idrico} + \text{Fognatura} + \text{Depurazione} + \text{Oneri } UI$$
 $$\text{Costo Totale Acqua} = \text{Imponibile} \times \left(1 + \frac{\text{IVA}}{100}\right)$$
 
@@ -194,6 +202,7 @@ custom_components/bolletta/operators/
 ### Entità per Acqua / Servizio Idrico
 | Entità | Tipo | Descrizione | Unità |
 | :--- | :--- | :--- | :--- |
+| `sensor.<istanza>_consumo_annuo_acqua` | Sensore | **Consumo d'acqua dell'anno solare in corso** (1 Gen - 31 Dic) | m³ |
 | `sensor.<istanza>_costo_acqua_totale` | Sensore | **Costo totale calcolato** (IVA inclusa) sul consumo | EUR |
 | `sensor.<istanza>_prezzo_medio_m3` | Sensore | Prezzo medio finito per $\text{m}^3$ consumato | EUR/m³ |
 | `sensor.<istanza>_scaglione_acqua` | Sensore | Nome dello scaglione TICSI attualmente raggiunto | - |

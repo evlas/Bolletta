@@ -16,8 +16,10 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
+    async_track_time_change,
     async_track_time_interval,
 )
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     COMMODITY_ENERGY,
@@ -69,6 +71,7 @@ from .const import (
     CONF_USA_FOGNATURA,
     CONF_USA_FOGNATURA_DEPURAZIONE,
     CONF_USE_MULTIORARIO,
+    CONF_WATER_ANNUAL_BASELINE,
     CONF_WATER_SENSOR,
     DEFAULT_POWER_KW,
     DEFAULT_WATER_VALUES,
@@ -104,14 +107,15 @@ async def async_setup_entry(
         operator_name = loaded_ops.get(operator, {}).get("name", operator.capitalize())
         contract_name = data.get("name", f"Bolletta {operator_name}")
 
-        totale_sensor = CostoAcquaTotaleSensor(hass, entry, "costo_acqua_totale", contract_name, operator_name)
+        annuo_sensor = ConsumoAcquaAnnuoSensor(hass, entry, "consumo_annuo_acqua", contract_name, operator_name)
+        totale_sensor = CostoAcquaTotaleSensor(hass, entry, "costo_acqua_totale", contract_name, operator_name, annuo_sensor)
         medio_sensor = PrezzoMedioM3Sensor(hass, entry, "prezzo_medio_m3", contract_name, operator_name, totale_sensor)
         scaglione_sensor = ScaglioneAcquaSensor(hass, entry, "scaglione_acqua", contract_name, operator_name, totale_sensor)
         qf_day_sensor = QuotaFissaGiornalieraAcquaSensor(hass, entry, "quota_fissa_giornaliera_acqua", contract_name, operator_name, totale_sensor)
         qf_year_sensor = QuotaFissaAnnuaAcquaSensor(hass, entry, "quota_fissa_annua_acqua", contract_name, operator_name, totale_sensor)
         qv_sensor = QuotaVariabileAcquaSensor(hass, entry, "quota_variabile_acqua", contract_name, operator_name, totale_sensor)
 
-        async_add_entities([totale_sensor, medio_sensor, scaglione_sensor, qf_day_sensor, qf_year_sensor, qv_sensor], True)
+        async_add_entities([annuo_sensor, totale_sensor, medio_sensor, scaglione_sensor, qf_day_sensor, qf_year_sensor, qv_sensor], True)
         return
 
     # Default: Energia Elettrica
@@ -548,6 +552,117 @@ class CostoFissoMensileSensor(BollettaBaseSensor):
 # =============================================================================
 # SENSORI PER IL SERVIZIO IDRICO (ACQUA)
 # =============================================================================
+class ConsumoAcquaAnnuoSensor(BollettaBaseSensor, RestoreEntity):
+    """Sensore per la contabilizzazione dell'acqua consumata dal 1° gennaio al 31 dicembre di ogni anno."""
+
+    _attr_device_class = SensorDeviceClass.WATER
+    _attr_native_unit_of_measurement = "m³"
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_suggested_display_precision = 3
+    _attr_icon = "mdi:water"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+    ) -> None:
+        """Inizializza."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._current_year = datetime.now().year
+        self._baseline_reading: float | None = None
+        self._attr_native_value: float = 0.0
+
+    @property
+    def baseline_reading(self) -> float:
+        """Restituisce la lettura al 1° gennaio."""
+        return self._baseline_reading or 0.0
+
+    async def async_added_to_hass(self) -> None:
+        """Ripristina lo stato precedente e registra i listener di aggiornamento e reset annuale."""
+        await super().async_added_to_hass()
+
+        last_state = await self.async_get_last_state()
+        now = datetime.now()
+        current_year = now.year
+
+        if last_state and last_state.attributes:
+            stored_year = last_state.attributes.get("anno_solare")
+            stored_baseline = last_state.attributes.get("lettura_iniziale_anno")
+            if stored_year == current_year and stored_baseline is not None:
+                self._baseline_reading = float(stored_baseline)
+                self._current_year = current_year
+
+        cfg_baseline = self.config.get(CONF_WATER_ANNUAL_BASELINE)
+        if cfg_baseline is not None and float(cfg_baseline) > 0:
+            self._baseline_reading = float(cfg_baseline)
+
+        water_entity = self.config.get(CONF_WATER_SENSOR)
+
+        @callback
+        def _handle_state_change(event) -> None:
+            self.async_schedule_update_ha_state(True)
+
+        if water_entity:
+            self.async_on_remove(
+                async_track_state_change_event(self.hass, [water_entity], _handle_state_change)
+            )
+
+        @callback
+        def _check_midnight_reset(now_dt: datetime) -> None:
+            if now_dt.year != self._current_year:
+                _LOGGER.info(
+                    "Cambio anno solare per %s (%s -> %s). Azzeramento contabilizzazione acqua al 1° Gennaio.",
+                    self.entity_id,
+                    self._current_year,
+                    now_dt.year,
+                )
+                self._current_year = now_dt.year
+                water_ent = self.config.get(CONF_WATER_SENSOR)
+                current_mc = self._get_float_state(water_ent, 0.0)
+                self._baseline_reading = current_mc
+                self.async_schedule_update_ha_state(True)
+
+        self.async_on_remove(
+            async_track_time_change(
+                self.hass, _check_midnight_reset, hour=0, minute=0, second=5
+            )
+        )
+
+    def update(self) -> None:
+        """Calcola il consumo d'acqua maturato nell'anno solare in corso (1 Gen - 31 Dic)."""
+        now = datetime.now()
+        water_entity = self.config.get(CONF_WATER_SENSOR)
+        raw_mc = self._get_float_state(water_entity, 0.0)
+
+        if now.year != self._current_year:
+            self._current_year = now.year
+            self._baseline_reading = raw_mc
+
+        if self._baseline_reading is None:
+            cfg_baseline = self.config.get(CONF_WATER_ANNUAL_BASELINE)
+            if cfg_baseline is not None and float(cfg_baseline) > 0:
+                self._baseline_reading = float(cfg_baseline)
+            else:
+                self._baseline_reading = 0.0
+
+        if raw_mc < self._baseline_reading:
+            self._baseline_reading = 0.0
+
+        consumo_annuo = max(0.0, raw_mc - self._baseline_reading)
+        self._attr_native_value = round(consumo_annuo, 3)
+
+        self._attr_extra_state_attributes = {
+            "periodo_contabilizzazione": f"01/01/{self._current_year} - 31/12/{self._current_year}",
+            "anno_solare": self._current_year,
+            "lettura_iniziale_anno": self._baseline_reading,
+            "lettura_contatore_grezza": raw_mc,
+            "prossimo_reset": f"01/01/{self._current_year + 1} 00:00:00",
+        }
+
+
 class CostoAcquaTotaleSensor(BollettaBaseSensor):
     """Sensore per il costo totale stimato della bolletta dell'acqua (€)."""
 
@@ -564,9 +679,11 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
         translation_key: str,
         contract_name: str,
         operator_name: str,
+        annuo_sensor: ConsumoAcquaAnnuoSensor,
     ) -> None:
         """Inizializza."""
         super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._annuo_sensor = annuo_sensor
         self.calc_result: dict[str, Any] = {
             "costo_totale": 0.0,
             "prezzo_medio_m3": 0.0,
@@ -577,7 +694,7 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
         }
 
     async def async_added_to_hass(self) -> None:
-        """Ascolta le variazioni del contatore acqua."""
+        """Ascolta le variazioni del contatore acqua e del sensore annuo."""
         await super().async_added_to_hass()
         water_entity = self.config.get(CONF_WATER_SENSOR)
 
@@ -585,16 +702,16 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
         def _handle_state_change(event) -> None:
             self.async_schedule_update_ha_state(True)
 
-        if water_entity:
+        watched = [e for e in [water_entity, self._annuo_sensor.entity_id] if e]
+        if watched:
             self.async_on_remove(
-                async_track_state_change_event(self.hass, [water_entity], _handle_state_change)
+                async_track_state_change_event(self.hass, watched, _handle_state_change)
             )
 
     def update(self) -> None:
-        """Calcola il costo dell'acqua."""
+        """Calcola il costo dell'acqua basandosi sul consumo dell'anno solare (1 Gen - 31 Dic)."""
         cfg = self.config
-        water_entity = cfg.get(CONF_WATER_SENSOR)
-        mc = self._get_float_state(water_entity, 0.0)
+        mc = float(self._annuo_sensor.native_value) if self._annuo_sensor.native_value is not None else 0.0
 
         usa_fog = bool(cfg.get(CONF_USA_FOGNATURA, cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)))
         usa_dep = bool(cfg.get(CONF_USA_DEPURAZIONE, cfg.get(CONF_USA_FOGNATURA_DEPURAZIONE, True)))
@@ -625,7 +742,8 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
 
         self._attr_native_value = self.calc_result["costo_totale"]
         self._attr_extra_state_attributes = {
-            "consumo_mc": mc,
+            "consumo_annuo_mc": mc,
+            "periodo_contabilizzazione": f"01/01/{datetime.now().year} - 31/12/{datetime.now().year}",
             "scaglione": self.calc_result["scaglione"],
             "quota_fissa_annua": self.calc_result["quota_fissa_annua"],
             "quota_variabile": self.calc_result["quota_variabile"],

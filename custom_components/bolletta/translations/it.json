@@ -89,6 +89,7 @@
           "usa_fognatura_depurazione": "Abilita Fognatura e Depurazione",
           "usa_fognatura": "Abilita Fognatura nel calcolo",
           "usa_depurazione": "Abilita Depurazione nel calcolo",
+          "water_annual_baseline": "Lettura Contatore al 1° Gennaio (m³)",
           "s1": "Soglia Tariffa Agevolata (m³/anno)",
           "s2": "Soglia Tariffa Base (m³/anno)",
           "s3": "Soglia I Eccedenza (m³/anno)",
@@ -151,6 +152,7 @@
           "usa_fognatura_depurazione": "Abilita Fognatura e Depurazione",
           "usa_fognatura": "Abilita Fognatura nel calcolo",
           "usa_depurazione": "Abilita Depurazione nel calcolo",
+          "water_annual_baseline": "Lettura Contatore al 1° Gennaio (m³)",
           "s1": "Soglia Tariffa Agevolata (m³/anno)",
           "s2": "Soglia Tariffa Base (m³/anno)",
           "s3": "Soglia I Eccedenza (m³/anno)",
@@ -179,6 +181,9 @@
       }
     },
     "sensor": {
+      "consumo_annuo_acqua": {
+        "name": "Consumo annuo acqua (1 Gen - 31 Dic)"
+      },
       "prezzo_unitario_f0": {
         "name": "Prezzo unitario F0"
       },

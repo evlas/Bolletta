@@ -74,6 +74,7 @@ from .const import (
     CONF_USA_FOGNATURA,
     CONF_USA_FOGNATURA_DEPURAZIONE,
     CONF_USE_MULTIORARIO,
+    CONF_WATER_ANNUAL_BASELINE,
     CONF_WATER_SENSOR,
     DEFAULT_FORMULA_ENERGIA,
     DEFAULT_FORMULA_QUOTA_FISSA,
@@ -588,6 +589,14 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_USA_DEPURAZIONE,
                     default=bool(defaults.get(CONF_USA_DEPURAZIONE, defaults.get(CONF_USA_FOGNATURA_DEPURAZIONE, True))),
                 ): bool,
+                vol.Optional(
+                    CONF_WATER_ANNUAL_BASELINE,
+                    default=float(defaults.get(CONF_WATER_ANNUAL_BASELINE, 0.0)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.0, max=100000.0, step="any", unit_of_measurement="m³", mode=NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Required(
                     CONF_S1, default=float(defaults.get(CONF_S1, 55.0))
                 ): NumberSelector(
@@ -792,6 +801,14 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_USA_DEPURAZIONE,
                     default=bool(entry_data.get(CONF_USA_DEPURAZIONE, entry_data.get(CONF_USA_FOGNATURA_DEPURAZIONE, True))),
                 ): bool,
+                vol.Optional(
+                    CONF_WATER_ANNUAL_BASELINE,
+                    default=float(entry_data.get(CONF_WATER_ANNUAL_BASELINE, 0.0)),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.0, max=100000.0, step="any", unit_of_measurement="m³", mode=NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Required(
                     CONF_S1, default=float(entry_data.get(CONF_S1, 55.0))
                 ): NumberSelector(
