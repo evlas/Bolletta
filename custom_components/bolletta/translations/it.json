@@ -208,6 +208,9 @@
       "costo_fisso_mensile": {
         "name": "Costo fisso mensile"
       },
+      "potenza_impegnata": {
+        "name": "Potenza impegnata"
+      },
       "costo_acqua_totale": {
         "name": "Costo totale acqua stimato"
       },

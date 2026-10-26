@@ -174,6 +174,13 @@ async def async_setup_entry(
         )
     )
 
+    # Potenza Impegnata da Contratto (kW)
+    entities.append(
+        PotenzaImpegnataSensor(
+            hass, entry, "potenza_impegnata", contract_name, operator_name
+        )
+    )
+
     async_add_entities(entities, True)
 
 
@@ -547,6 +554,67 @@ class CostoFissoMensileSensor(BollettaBaseSensor):
             self._attr_native_value = round(daily_val * (365.0 / 12.0), 2)
         else:
             self._attr_native_value = None
+
+
+class PotenzaImpegnataSensor(BollettaBaseSensor):
+    """Sensore per la potenza contrattuale impegnata (kW)."""
+
+    _attr_native_unit_of_measurement = "kW"
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+    _attr_icon = "mdi:flash"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+    ) -> None:
+        """Inizializza il sensore potenza impegnata."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._power_kw = float(self.config.get(CONF_POWER_KW, DEFAULT_POWER_KW))
+
+    def update(self) -> None:
+        """Aggiorna il valore della potenza impegnata dalle opzioni."""
+        self._power_kw = float(self.config.get(CONF_POWER_KW, DEFAULT_POWER_KW))
+        self._attr_native_value = self._power_kw
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Restituisce attributi utili per automazioni e controllo carichi."""
+        power_kw = self._power_kw
+        potenza_disp_kw = round(power_kw * 1.10, 2)
+        potenza_disp_w = int(round(power_kw * 1100))
+        testo_kw = f"{str(power_kw).replace('.', ',').rstrip('0').rstrip(',') if power_kw % 1 != 0 else int(power_kw)} kW"
+
+        # Soglie standard controllo carichi contatore elettronico Open Meter / ARERA
+        if abs(power_kw - 3.0) < 0.1:
+            soglia_innesco_w = 3299
+            soglia_istantanea_w = 3999
+        elif abs(power_kw - 4.5) < 0.1:
+            soglia_innesco_w = 4949
+            soglia_istantanea_w = 5899
+        elif abs(power_kw - 6.0) < 0.1:
+            soglia_innesco_w = 6599
+            soglia_istantanea_w = 7899
+        elif abs(power_kw - 10.0) < 0.1:
+            soglia_innesco_w = 10999
+            soglia_istantanea_w = 12999
+        else:
+            soglia_innesco_w = int(round(power_kw * 1100 - 1))
+            soglia_istantanea_w = int(round(power_kw * 1333 - 1))
+
+        return {
+            "potenza_impegnata_w": int(round(power_kw * 1000)),
+            "potenza_disponibile_kw": potenza_disp_kw,
+            "potenza_disponibile_w": potenza_disp_w,
+            "soglia_innesco_w": soglia_innesco_w,
+            "soglia_istantanea_w": soglia_istantanea_w,
+            "selettore_kw_testo": testo_kw,
+        }
 
 
 # =============================================================================

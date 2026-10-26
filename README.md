@@ -167,6 +167,7 @@ custom_components/bolletta/operators/
 | `sensor.<instance>_prezzo_unitario_f3` | Total finished off-peak band price (F3) | EUR/kWh | measurement |
 | `sensor.<instance>_prezzo_fisso_giornaliero` | Daily fixed charges (PCV + ARERA + Capacity) | EUR/day | measurement |
 | `sensor.<instance>_costo_fisso_mensile` | Monthly average fixed charges | EUR/month | measurement |
+| `sensor.<instance>_potenza_impegnata` | Contracted power (with load disconnection threshold attributes) | kW | power |
 
 ### Water Entities
 | Entity | Type | Description | Unit |

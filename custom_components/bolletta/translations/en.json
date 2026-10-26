@@ -208,6 +208,9 @@
       "costo_fisso_mensile": {
         "name": "Monthly fixed fee"
       },
+      "potenza_impegnata": {
+        "name": "Contracted power"
+      },
       "costo_acqua_totale": {
         "name": "Estimated total water cost"
       },

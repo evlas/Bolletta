@@ -198,6 +198,7 @@ custom_components/bolletta/operators/
 | `sensor.<istanza>_prezzo_unitario_f3` | Prezzo finito fascia Fuori Picco (F3) | EUR/kWh | measurement |
 | `sensor.<istanza>_prezzo_fisso_giornaliero` | Quota fissa giornaliera (PCV + ARERA + Potenza) | EUR/day | measurement |
 | `sensor.<istanza>_costo_fisso_mensile` | Quota fissa media mensile | EUR/month | measurement |
+| `sensor.<istanza>_potenza_impegnata` | **Potenza impegnata** da contratto (con attributi soglie sgancio) | kW | power |
 
 ### Entità per Acqua / Servizio Idrico
 | Entità | Tipo | Descrizione | Unità |
