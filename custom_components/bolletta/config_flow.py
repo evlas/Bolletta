@@ -83,7 +83,7 @@ from .const import (
     DOMAIN,
     FALLBACK_ARERA,
 )
-from .operators_loader import load_operators_and_offers
+from .operators_loader import async_load_operators_and_offers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Configurazione base fornitura energia elettrica."""
         errors: dict[str, str] = {}
-        operators = load_operators_and_offers(COMMODITY_ENERGY)
+        operators = await async_load_operators_and_offers(self.hass, COMMODITY_ENERGY)
         operator_options = [
             SelectOptionDict(value=op_id, label=op_data["name"])
             for op_id, op_data in operators.items()
@@ -196,7 +196,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Selezione dell'offerta specifica dell'operatore energetico."""
         errors: dict[str, str] = {}
-        operators = load_operators_and_offers(COMMODITY_ENERGY)
+        operators = await async_load_operators_and_offers(self.hass, COMMODITY_ENERGY)
         op_id = self._user_data.get(CONF_OPERATOR, "custom")
         op_data = operators.get(op_id, {})
         offers = op_data.get("offers", {})
@@ -456,7 +456,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Configurazione iniziale per la bolletta dell'acqua."""
         errors: dict[str, str] = {}
-        operators = load_operators_and_offers(COMMODITY_WATER)
+        operators = await async_load_operators_and_offers(self.hass, COMMODITY_WATER)
         operator_options = [
             SelectOptionDict(value=op_id, label=op_data["name"])
             for op_id, op_data in operators.items()
@@ -498,7 +498,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Selezione della tariffa idrica dell'operatore."""
         errors: dict[str, str] = {}
-        operators = load_operators_and_offers(COMMODITY_WATER)
+        operators = await async_load_operators_and_offers(self.hass, COMMODITY_WATER)
         op_id = self._user_data.get(CONF_OPERATOR, "custom_water")
         op_data = operators.get(op_id, {})
         offers = op_data.get("offers", {})
@@ -692,7 +692,7 @@ class BollettaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Configurazione iniziale per la fornitura di gas naturale."""
         errors: dict[str, str] = {}
-        operators = load_operators_and_offers(COMMODITY_GAS)
+        operators = await async_load_operators_and_offers(self.hass, COMMODITY_GAS)
         operator_options = [
             SelectOptionDict(value=op_id, label=op_data["name"])
             for op_id, op_data in operators.items()
@@ -807,7 +807,7 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Seleziona un nuovo operatore limitatamente alla commodity corrente."""
         commodity = self.config_entry.data.get(CONF_COMMODITY, COMMODITY_ENERGY)
-        operators = load_operators_and_offers(commodity)
+        operators = await async_load_operators_and_offers(self.hass, commodity)
 
         operator_options = [
             SelectOptionDict(value=op_id, label=op_data.get("name", op_id.capitalize()))
@@ -858,7 +858,7 @@ class BollettaOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Seleziona l'offerta commerciale per l'operatore scelto."""
         commodity = self.config_entry.data.get(CONF_COMMODITY, COMMODITY_ENERGY)
-        operators = load_operators_and_offers(commodity)
+        operators = await async_load_operators_and_offers(self.hass, commodity)
         chosen_op = self._options_data.get(
             CONF_OPERATOR,
             self.config_entry.options.get(CONF_OPERATOR, self.config_entry.data.get(CONF_OPERATOR, "custom")),

@@ -7,24 +7,14 @@ from pathlib import Path
 from typing import Any
 import xml.etree.ElementTree as ET
 
-try:
-    from .const import (
-        DEFAULT_FORMULA_ENERGIA,
-        DEFAULT_FORMULA_QUOTA_FISSA,
-        DEFAULT_WATER_VALUES,
-        COMMODITY_ENERGY,
-        COMMODITY_WATER,
-        COMMODITY_GAS,
-    )
-except (ImportError, ValueError):
-    from const import (
-        DEFAULT_FORMULA_ENERGIA,
-        DEFAULT_FORMULA_QUOTA_FISSA,
-        DEFAULT_WATER_VALUES,
-        COMMODITY_ENERGY,
-        COMMODITY_WATER,
-        COMMODITY_GAS,
-    )
+from .const import (
+    DEFAULT_FORMULA_ENERGIA,
+    DEFAULT_FORMULA_QUOTA_FISSA,
+    DEFAULT_WATER_VALUES,
+    COMMODITY_ENERGY,
+    COMMODITY_WATER,
+    COMMODITY_GAS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -234,3 +224,12 @@ def load_operators_and_offers(
         }
 
     return operators
+
+
+async def async_load_operators_and_offers(
+    hass: Any, commodity: str = "energy", base_dir: Path | None = None
+) -> dict[str, dict[str, Any]]:
+    """Carica operatori e offerte in modo asincrono nell'executor senza bloccare l'event loop."""
+    return await hass.async_add_executor_job(
+        load_operators_and_offers, commodity, base_dir
+    )

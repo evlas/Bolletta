@@ -21,6 +21,7 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util, slugify
 
 from .const import (
     COMMODITY_ENERGY,
@@ -80,7 +81,7 @@ from .const import (
     FALLBACK_ARERA,
     OPERATORS,
 )
-from .operators_loader import load_operators_and_offers
+from .operators_loader import async_load_operators_and_offers
 from .tariffs import (
     compute_bolletta_acqua,
     compute_prezzo_energia,
@@ -93,6 +94,15 @@ from .tariffs import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _is_primary_entry_for_commodity(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Restituisce True se questa ConfigEntry è la prima configurata per la propria commodity."""
+    commodity = entry.data.get(CONF_COMMODITY, COMMODITY_ENERGY)
+    for existing in hass.config_entries.async_entries(DOMAIN):
+        if existing.data.get(CONF_COMMODITY, COMMODITY_ENERGY) == commodity:
+            return existing.entry_id == entry.entry_id
+    return True
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -101,36 +111,38 @@ async def async_setup_entry(
     """Configura i sensori Bolletta da ConfigEntry."""
     # Migrazione automatica: aggiorna gli entity_id esistenti nel registro
     # rimuovendo prefissi operatore/offerta e standardizzandoli a sensor.<chiave>
-    ent_reg = er.async_get(hass)
-    prefix = f"{entry.entry_id}_"
-    for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
-        if reg_entry.domain == "sensor" and reg_entry.unique_id.startswith(prefix):
-            key = reg_entry.unique_id[len(prefix):]
-            desired_entity_id = f"sensor.{key}"
-            if reg_entry.entity_id != desired_entity_id:
-                if ent_reg.async_get(desired_entity_id) is None:
-                    _LOGGER.info(
-                        "Migrazione automatica entity_id per %s da %s a %s",
-                        key,
-                        reg_entry.entity_id,
-                        desired_entity_id,
-                    )
-                    try:
-                        ent_reg.async_update_entity(reg_entry.entity_id, new_entity_id=desired_entity_id)
-                    except Exception as err:
-                        _LOGGER.warning(
-                            "Impossibile migrare entity_id %s in %s: %s",
+    # solo per la fornitura primaria della commodity, evitando collisioni su multi-contratto.
+    if _is_primary_entry_for_commodity(hass, entry):
+        ent_reg = er.async_get(hass)
+        prefix = f"{entry.entry_id}_"
+        for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+            if reg_entry.domain == "sensor" and reg_entry.unique_id.startswith(prefix):
+                key = reg_entry.unique_id[len(prefix):]
+                desired_entity_id = f"sensor.{key}"
+                if reg_entry.entity_id != desired_entity_id:
+                    if ent_reg.async_get(desired_entity_id) is None:
+                        _LOGGER.info(
+                            "Migrazione automatica entity_id per %s da %s a %s",
+                            key,
                             reg_entry.entity_id,
                             desired_entity_id,
-                            err,
                         )
+                        try:
+                            ent_reg.async_update_entity(reg_entry.entity_id, new_entity_id=desired_entity_id)
+                        except Exception as err:
+                            _LOGGER.warning(
+                                "Impossibile migrare entity_id %s in %s: %s",
+                                reg_entry.entity_id,
+                                desired_entity_id,
+                                err,
+                            )
 
     data = {**entry.data, **entry.options}
     commodity = data.get(CONF_COMMODITY, COMMODITY_ENERGY)
     operator = data.get(CONF_OPERATOR, "custom")
 
     if commodity == COMMODITY_WATER:
-        loaded_ops = load_operators_and_offers(COMMODITY_WATER)
+        loaded_ops = await async_load_operators_and_offers(hass, COMMODITY_WATER)
         operator_name = loaded_ops.get(operator, {}).get("name", operator.capitalize())
         contract_name = data.get("name") or "Bolletta Acqua"
 
@@ -146,14 +158,19 @@ async def async_setup_entry(
         return
 
     if commodity == COMMODITY_GAS:
-        loaded_ops = load_operators_and_offers(COMMODITY_GAS)
+        loaded_ops = await async_load_operators_and_offers(hass, COMMODITY_GAS)
         operator_name = loaded_ops.get(operator, {}).get("name", operator.capitalize())
         contract_name = data.get("name") or "Bolletta Gas"
-        # Al momento la commodity gas non espone sensori complessi
+
+        prezzo_gas = PrezzoGasSmcSensor(hass, entry, "prezzo_unitario_gas", contract_name, operator_name)
+        qf_day_gas = QuotaFissaGiornalieraGasSensor(hass, entry, "prezzo_fisso_giornaliero_gas", contract_name, operator_name)
+        qf_month_gas = CostoFissoMensileSensor(hass, entry, "costo_fisso_mensile_gas", contract_name, operator_name, qf_day_gas)
+
+        async_add_entities([prezzo_gas, qf_day_gas, qf_month_gas], True)
         return
 
     # Default: Energia Elettrica
-    loaded_ops = load_operators_and_offers(COMMODITY_ENERGY)
+    loaded_ops = await async_load_operators_and_offers(hass, COMMODITY_ENERGY)
     operator_name = loaded_ops.get(operator, {}).get("name", OPERATORS.get(operator, operator.capitalize()))
     contract_name = data.get("name") or "Bolletta Luce"
 
@@ -237,6 +254,10 @@ SENSOR_NAMES: dict[str, str] = {
     "quota_fissa_giornaliera_acqua": "Quota Fissa Giornaliera Acqua",
     "quota_fissa_annua_acqua": "Quota Fissa Annua Acqua",
     "quota_variabile_acqua": "Quota Variabile Consumo Acqua",
+    # Gas Naturale
+    "prezzo_unitario_gas": "Prezzo Unitario Gas",
+    "prezzo_fisso_giornaliero_gas": "Prezzo Fisso Giornaliero Gas",
+    "costo_fisso_mensile_gas": "Costo Fisso Mensile Gas",
 }
 
 
@@ -284,8 +305,10 @@ class BollettaBaseSensor(SensorEntity):
 
     @property
     def suggested_object_id(self) -> str | None:
-        """Suggerisce l'ID entità generico senza prefisso operatore o offerta."""
-        return self._key
+        """Suggerisce l'ID entità generico senza prefisso per la fornitura primaria, o con prefisso contratto per le successive."""
+        if _is_primary_entry_for_commodity(self.hass, self.entry):
+            return self._key
+        return f"{slugify(self._contract_name)}_{self._key}"
 
     @property
     def config(self) -> dict[str, Any]:
@@ -608,11 +631,26 @@ class CostoFissoMensileSensor(BollettaBaseSensor):
         translation_key: str,
         contract_name: str,
         operator_name: str,
-        daily_sensor: PrezzoFissoGiornalieroSensor,
+        daily_sensor: BollettaBaseSensor,
     ) -> None:
         """Inizializza."""
         super().__init__(hass, entry, translation_key, contract_name, operator_name)
         self._daily_sensor = daily_sensor
+
+    async def async_added_to_hass(self) -> None:
+        """Ricalcola subito quando la quota fissa giornaliera si aggiorna."""
+        await super().async_added_to_hass()
+
+        @callback
+        def _handle_daily_change(event) -> None:
+            self.async_schedule_update_ha_state(True)
+
+        if self._daily_sensor.entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass, [self._daily_sensor.entity_id], _handle_daily_change
+                )
+            )
 
     def update(self) -> None:
         """Calcola la quota fissa mensile (media 365 / 12 = 30.4167 giorni)."""
@@ -706,7 +744,7 @@ class ConsumoAcquaAnnuoSensor(BollettaBaseSensor, RestoreEntity):
     ) -> None:
         """Inizializza."""
         super().__init__(hass, entry, translation_key, contract_name, operator_name)
-        self._current_year = datetime.now().year
+        self._current_year = dt_util.now().year
         self._baseline_reading: float | None = None
         self._attr_native_value: float = 0.0
 
@@ -720,7 +758,7 @@ class ConsumoAcquaAnnuoSensor(BollettaBaseSensor, RestoreEntity):
         await super().async_added_to_hass()
 
         last_state = await self.async_get_last_state()
-        now = datetime.now()
+        now = dt_util.now()
         current_year = now.year
 
         if last_state and last_state.attributes:
@@ -768,7 +806,7 @@ class ConsumoAcquaAnnuoSensor(BollettaBaseSensor, RestoreEntity):
 
     def update(self) -> None:
         """Calcola il consumo d'acqua maturato nell'anno solare in corso (1 Gen - 31 Dic)."""
-        now = datetime.now()
+        now = dt_util.now()
         water_entity = self.config.get(CONF_WATER_SENSOR)
         raw_mc = self._get_float_state(water_entity, 0.0)
 
@@ -875,10 +913,11 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
             iva_percent=float(cfg.get(CONF_IVA, 10.0)),
         )
 
+        now_year = dt_util.now().year
         self._attr_native_value = self.calc_result["costo_totale"]
         self._attr_extra_state_attributes = {
             "consumo_annuo_mc": mc,
-            "periodo_contabilizzazione": f"01/01/{datetime.now().year} - 31/12/{datetime.now().year}",
+            "periodo_contabilizzazione": f"01/01/{now_year} - 31/12/{now_year}",
             "scaglione": self.calc_result["scaglione"],
             "quota_fissa_annua": self.calc_result["quota_fissa_annua"],
             "quota_variabile": self.calc_result["quota_variabile"],
@@ -887,7 +926,39 @@ class CostoAcquaTotaleSensor(BollettaBaseSensor):
         }
 
 
-class PrezzoMedioM3Sensor(BollettaBaseSensor):
+class _WaterDependentSensor(BollettaBaseSensor):
+    """Classe base per i sensori idrici derivati da CostoAcquaTotaleSensor."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        translation_key: str,
+        contract_name: str,
+        operator_name: str,
+        totale_sensor: CostoAcquaTotaleSensor,
+    ) -> None:
+        """Inizializza e collega al sensore padre."""
+        super().__init__(hass, entry, translation_key, contract_name, operator_name)
+        self._totale_sensor = totale_sensor
+
+    async def async_added_to_hass(self) -> None:
+        """Ricalcola automaticamente quando CostoAcquaTotaleSensor si aggiorna."""
+        await super().async_added_to_hass()
+
+        @callback
+        def _handle_parent_change(event) -> None:
+            self.async_schedule_update_ha_state(True)
+
+        if self._totale_sensor.entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass, [self._totale_sensor.entity_id], _handle_parent_change
+                )
+            )
+
+
+class PrezzoMedioM3Sensor(_WaterDependentSensor):
     """Sensore per il prezzo medio effettivo al m³ (€/m³)."""
 
     _attr_native_unit_of_measurement = "EUR/m³"
@@ -895,48 +966,22 @@ class PrezzoMedioM3Sensor(BollettaBaseSensor):
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:water-percent"
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        translation_key: str,
-        contract_name: str,
-        operator_name: str,
-        totale_sensor: CostoAcquaTotaleSensor,
-    ) -> None:
-        """Inizializza."""
-        super().__init__(hass, entry, translation_key, contract_name, operator_name)
-        self._totale_sensor = totale_sensor
-
     def update(self) -> None:
         """Aggiorna il prezzo medio."""
         self._attr_native_value = self._totale_sensor.calc_result.get("prezzo_medio_m3", 0.0)
 
 
-class ScaglioneAcquaSensor(BollettaBaseSensor):
+class ScaglioneAcquaSensor(_WaterDependentSensor):
     """Sensore per lo scaglione idrico attualmente attivo."""
 
     _attr_icon = "mdi:stairs"
-
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        translation_key: str,
-        contract_name: str,
-        operator_name: str,
-        totale_sensor: CostoAcquaTotaleSensor,
-    ) -> None:
-        """Inizializza."""
-        super().__init__(hass, entry, translation_key, contract_name, operator_name)
-        self._totale_sensor = totale_sensor
 
     def update(self) -> None:
         """Aggiorna lo scaglione."""
         self._attr_native_value = self._totale_sensor.calc_result.get("scaglione", "Agevolata")
 
 
-class QuotaFissaGiornalieraAcquaSensor(BollettaBaseSensor):
+class QuotaFissaGiornalieraAcquaSensor(_WaterDependentSensor):
     """Sensore per la quota fissa giornaliera dell'acqua (€/giorno)."""
 
     _attr_native_unit_of_measurement = "EUR/day"
@@ -944,25 +989,12 @@ class QuotaFissaGiornalieraAcquaSensor(BollettaBaseSensor):
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:calendar-today"
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        translation_key: str,
-        contract_name: str,
-        operator_name: str,
-        totale_sensor: CostoAcquaTotaleSensor,
-    ) -> None:
-        """Inizializza."""
-        super().__init__(hass, entry, translation_key, contract_name, operator_name)
-        self._totale_sensor = totale_sensor
-
     def update(self) -> None:
         """Aggiorna la quota fissa giornaliera."""
         self._attr_native_value = self._totale_sensor.calc_result.get("quota_fissa_giornaliera", 0.0)
 
 
-class QuotaFissaAnnuaAcquaSensor(BollettaBaseSensor):
+class QuotaFissaAnnuaAcquaSensor(_WaterDependentSensor):
     """Sensore per la quota fissa annua dell'acqua (€/anno)."""
 
     _attr_native_unit_of_measurement = "EUR/year"
@@ -970,25 +1002,12 @@ class QuotaFissaAnnuaAcquaSensor(BollettaBaseSensor):
     _attr_suggested_display_precision = 2
     _attr_icon = "mdi:calendar-blank"
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        translation_key: str,
-        contract_name: str,
-        operator_name: str,
-        totale_sensor: CostoAcquaTotaleSensor,
-    ) -> None:
-        """Inizializza."""
-        super().__init__(hass, entry, translation_key, contract_name, operator_name)
-        self._totale_sensor = totale_sensor
-
     def update(self) -> None:
         """Aggiorna la quota fissa annua."""
         self._attr_native_value = self._totale_sensor.calc_result.get("quota_fissa_annua", 0.0)
 
 
-class QuotaVariabileAcquaSensor(BollettaBaseSensor):
+class QuotaVariabileAcquaSensor(_WaterDependentSensor):
     """Sensore per la quota variabile dell'acqua (€)."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
@@ -997,20 +1016,107 @@ class QuotaVariabileAcquaSensor(BollettaBaseSensor):
     _attr_suggested_display_precision = 2
     _attr_icon = "mdi:water-plus"
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        translation_key: str,
-        contract_name: str,
-        operator_name: str,
-        totale_sensor: CostoAcquaTotaleSensor,
-    ) -> None:
-        """Inizializza."""
-        super().__init__(hass, entry, translation_key, contract_name, operator_name)
-        self._totale_sensor = totale_sensor
-
     def update(self) -> None:
         """Aggiorna la quota variabile."""
         self._attr_native_value = self._totale_sensor.calc_result.get("quota_variabile", 0.0)
+
+
+# =============================================================================
+# SENSORI PER IL GAS NATURALE
+# =============================================================================
+class PrezzoGasSmcSensor(BollettaBaseSensor):
+    """Sensore per il prezzo unitario del gas naturale (€/Smc)."""
+
+    _attr_native_unit_of_measurement = "EUR/m³"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 6
+    _attr_icon = "mdi:fire"
+
+    async def async_added_to_hass(self) -> None:
+        """Ascolta eventuali sensori ARERA Gas presenti in Home Assistant."""
+        await super().async_added_to_hass()
+        watched = [
+            "sensor.arera_gas_cmem_m",
+            "sensor.arera_gas_ccr",
+            "sensor.arera_gas_qvd_variabile",
+            "sensor.arera_gas_qt_int",
+            "sensor.arera_gas_qti",
+            "sensor.arera_gas_re",
+            "sensor.arera_gas_rs",
+            "sensor.arera_gas_ug1",
+        ]
+
+        @callback
+        def _handle_state_change(event) -> None:
+            self.async_schedule_update_ha_state(True)
+
+        self.async_on_remove(
+            async_track_state_change_event(self.hass, watched, _handle_state_change)
+        )
+
+    def update(self) -> None:
+        """Calcola il prezzo unitario al Smc comprensivo di spread, componenti ARERA e IVA."""
+        cfg = self.config
+        spread = float(cfg.get("spread", 0.05))
+        iva = float(cfg.get(CONF_IVA, 10.0))
+
+        cmem = self._get_float_state("sensor.arera_gas_cmem_m", 0.42)
+        ccr = self._get_float_state("sensor.arera_gas_ccr", 0.035)
+        qvd_var = self._get_float_state("sensor.arera_gas_qvd_variabile", 0.008)
+        qt = self._get_float_state(
+            "sensor.arera_gas_qti",
+            self._get_float_state("sensor.arera_gas_qt_int", 0.045),
+        )
+        oneri = (
+            self._get_float_state("sensor.arera_gas_re", 0.0)
+            + self._get_float_state("sensor.arera_gas_rs", 0.0)
+            + self._get_float_state("sensor.arera_gas_ug1", 0.0)
+        )
+
+        imponibile = cmem + spread + ccr + qvd_var + qt + oneri
+        totale = imponibile * (1.0 + (iva / 100.0))
+        self._attr_native_value = round(totale, 6)
+        self._attr_extra_state_attributes = {
+            "cmem_m": cmem,
+            "spread": spread,
+            "iva_percent": iva,
+        }
+
+
+class QuotaFissaGiornalieraGasSensor(BollettaBaseSensor):
+    """Sensore per la quota fissa giornaliera del gas naturale (€/giorno)."""
+
+    _attr_native_unit_of_measurement = "EUR/day"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 4
+    _attr_icon = "mdi:calendar-today"
+
+    async def async_added_to_hass(self) -> None:
+        """Ascolta eventuali sensori ARERA Gas quota fissa."""
+        await super().async_added_to_hass()
+        watched = [
+            "sensor.arera_gas_qvd_fissa",
+            "sensor.arera_gas_tau1_distribuzione",
+            "sensor.arera_gas_ug3",
+        ]
+
+        @callback
+        def _handle_state_change(event) -> None:
+            self.async_schedule_update_ha_state(True)
+
+        self.async_on_remove(
+            async_track_state_change_event(self.hass, watched, _handle_state_change)
+        )
+
+    def update(self) -> None:
+        """Calcola la quota fissa giornaliera del gas."""
+        cfg = self.config
+        qf_anno = float(cfg.get("qf_anno", 96.0))
+        iva = float(cfg.get(CONF_IVA, 10.0))
+        tau1 = self._get_float_state("sensor.arera_gas_tau1_distribuzione", 0.0)
+        ug3 = self._get_float_state("sensor.arera_gas_ug3", 0.0)
+
+        totale_annuo = (qf_anno + tau1 + ug3) * (1.0 + (iva / 100.0))
+        self._attr_native_value = round(totale_annuo / 365.0, 4)
+
 

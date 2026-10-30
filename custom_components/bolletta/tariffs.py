@@ -7,6 +7,8 @@ import logging
 import operator as op
 from typing import Any, Literal
 
+from homeassistant.util import dt as dt_util
+
 _LOGGER = logging.getLogger(__name__)
 
 # Operatori sicuri consentiti nelle formule
@@ -40,6 +42,8 @@ def _eval_ast_node(node: ast.AST, context: dict[str, Any]) -> Any:
         left = _eval_ast_node(node.left, context)
         right = _eval_ast_node(node.right, context)
         op_type = type(node.op)
+        if op_type is ast.Pow and isinstance(right, (int, float)) and abs(right) > 10:
+            raise ValueError(f"Esponente fuori limite consentito: {right}")
         if op_type in SAFE_OPERATORS:
             return SAFE_OPERATORS[op_type](left, right)
         raise ValueError(f"Operatore non consentito: {op_type}")
@@ -144,7 +148,7 @@ def get_fascia_oraria(dt: datetime | None = None) -> Literal["F1", "F2", "F3"]:
                            Domeniche e festività nazionali tutto il giorno.
     """
     if dt is None:
-        dt = datetime.now()
+        dt = dt_util.now()
 
     # Domenica o Festività Nazionale -> sempre F3
     if dt.weekday() == 6 or is_italian_holiday(dt.date()):

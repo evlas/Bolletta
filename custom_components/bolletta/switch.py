@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import slugify
 
 from .const import (
     COMMODITY_WATER,
@@ -28,6 +29,14 @@ SWITCH_MAP: dict[str, str] = {
 }
 
 
+def _is_primary_water_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Restituisce True se questa ConfigEntry è la prima configurata per la commodity acqua."""
+    for existing in hass.config_entries.async_entries(DOMAIN):
+        if existing.data.get(CONF_COMMODITY) == COMMODITY_WATER:
+            return existing.entry_id == entry.entry_id
+    return True
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -40,28 +49,30 @@ async def async_setup_entry(
 
     # Migrazione automatica: aggiorna gli entity_id degli switch rimuovendo
     # il prefisso dell'operatore/offerta verso switch.fognatura e switch.depurazione
-    ent_reg = er.async_get(hass)
-    prefix = f"{entry.entry_id}_"
-    for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
-        if reg_entry.domain == "switch" and reg_entry.unique_id.startswith(prefix):
-            key = reg_entry.unique_id[len(prefix):]
-            desired_entity_id = SWITCH_MAP.get(key)
-            if desired_entity_id and reg_entry.entity_id != desired_entity_id:
-                if ent_reg.async_get(desired_entity_id) is None:
-                    _LOGGER.info(
-                        "Migrazione automatica switch entity_id da %s a %s",
-                        reg_entry.entity_id,
-                        desired_entity_id,
-                    )
-                    try:
-                        ent_reg.async_update_entity(reg_entry.entity_id, new_entity_id=desired_entity_id)
-                    except Exception as err:
-                        _LOGGER.warning(
-                            "Impossibile migrare switch entity_id %s in %s: %s",
+    # solo per la fornitura primaria idrica.
+    if _is_primary_water_entry(hass, entry):
+        ent_reg = er.async_get(hass)
+        prefix = f"{entry.entry_id}_"
+        for reg_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+            if reg_entry.domain == "switch" and reg_entry.unique_id.startswith(prefix):
+                key = reg_entry.unique_id[len(prefix):]
+                desired_entity_id = SWITCH_MAP.get(key)
+                if desired_entity_id and reg_entry.entity_id != desired_entity_id:
+                    if ent_reg.async_get(desired_entity_id) is None:
+                        _LOGGER.info(
+                            "Migrazione automatica switch entity_id da %s a %s",
                             reg_entry.entity_id,
                             desired_entity_id,
-                            err,
                         )
+                        try:
+                            ent_reg.async_update_entity(reg_entry.entity_id, new_entity_id=desired_entity_id)
+                        except Exception as err:
+                            _LOGGER.warning(
+                                "Impossibile migrare switch entity_id %s in %s: %s",
+                                reg_entry.entity_id,
+                                desired_entity_id,
+                                err,
+                            )
 
     contract_name = entry.data.get("name", "Bolletta Acqua")
     operator_name = entry.data.get("operator", "Acea").capitalize()
@@ -116,6 +127,7 @@ class BollettaWaterSwitch(SwitchEntity):
         self._attr_name = default_name
         self._attr_icon = icon
         self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._contract_name = contract_name
 
         entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
         version = entry_data.get("version") if isinstance(entry_data, dict) else None
@@ -130,8 +142,10 @@ class BollettaWaterSwitch(SwitchEntity):
 
     @property
     def suggested_object_id(self) -> str | None:
-        """Suggerisce l'ID entità generico."""
-        return self._attr_translation_key
+        """Suggerisce l'ID entità generico o prefissato se presente una seconda fornitura idrica."""
+        if _is_primary_water_entry(self.hass, self.entry):
+            return self._attr_translation_key
+        return f"{slugify(self._contract_name)}_{self._attr_translation_key}"
 
     @property
     def is_on(self) -> bool:
