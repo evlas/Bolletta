@@ -814,10 +814,27 @@ class ConsumoAcquaAnnuoSensor(BollettaBaseSensor, RestoreEntity):
             self._current_year = now.year
             self._baseline_reading = raw_mc
 
-        if self._baseline_reading is None:
-            cfg_baseline = self.config.get(CONF_WATER_ANNUAL_BASELINE)
+        # Se il sensore sorgente è già un contatore annuale (es. sensor.acea_acqua_consumo_anno_corrente),
+        # la baseline è sempre 0. Se invece espone l'attributo jan1_baseline_mc (es. sensor.acea_acqua_consumo_totale_storico)
+        # e l'utente non ha forzato una baseline manuale > 0, usa automaticamente la lettura al 1° gennaio dal Recorder.
+        water_state = self.hass.states.get(water_entity) if water_entity else None
+        auto_jan1 = None
+        if water_entity == "sensor.acea_acqua_consumo_anno_corrente":
+            auto_jan1 = 0.0
+        elif water_state and water_state.attributes.get("jan1_baseline_mc") is not None:
+            try:
+                auto_jan1 = float(water_state.attributes["jan1_baseline_mc"])
+            except (ValueError, TypeError):
+                auto_jan1 = None
+
+        cfg_baseline = self.config.get(CONF_WATER_ANNUAL_BASELINE)
+        if auto_jan1 is not None and (cfg_baseline is None or float(cfg_baseline) <= 0):
+            self._baseline_reading = auto_jan1
+        elif self._baseline_reading is None:
             if cfg_baseline is not None and float(cfg_baseline) > 0:
                 self._baseline_reading = float(cfg_baseline)
+            elif auto_jan1 is not None:
+                self._baseline_reading = auto_jan1
             else:
                 self._baseline_reading = 0.0
 
